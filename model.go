@@ -116,8 +116,6 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -142,13 +140,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Update the focused input (only if not on file list)
-	if m.focus == focusSearch {
-		m.searchInput, cmd = m.searchInput.Update(msg)
-	} else if m.focus == focusPath {
-		m.pathInput, cmd = m.pathInput.Update(msg)
-	}
-	return m, cmd
+	return m, nil
 }
 
 func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -432,7 +424,9 @@ func (m model) viewSelect() string {
 	b.WriteString(headerStyle.Render("MultiEdit - File Synchronization Tool") + "\n\n")
 
 	// Context-sensitive keyboard hints
-	instructStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+	// Use adaptive color: dark on light backgrounds, light on dark backgrounds
+	instructStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.AdaptiveColor{Light: "#666666", Dark: "#999999"})
 	var hints string
 
 	switch m.focus {
