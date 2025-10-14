@@ -66,10 +66,9 @@ func initialModel(initialQuery string, initialPath string) model {
 	searchInput.Width = 50
 	searchInput.SetValue(initialQuery)
 
-	// Path input (focused by default)
+	// Path input
 	pathInput := textinput.New()
 	pathInput.Placeholder = "Working directory..."
-	pathInput.Focus() // Path is focused initially
 	pathInput.CharLimit = 256
 	pathInput.Width = 50
 
@@ -95,7 +94,7 @@ func initialModel(initialQuery string, initialPath string) model {
 		height:        24,
 		mode:          modeSelect,
 		viewport:      0,
-		focus:         focusPath,
+		focus:         focusList, // Start with file list focused
 		workDir:       workDir,
 		showPreview:   true, // Show preview by default
 		previewScroll: 0,
