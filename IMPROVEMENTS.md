@@ -4,30 +4,26 @@ This document tracks known bugs, planned improvements, and feature ideas for the
 
 ## Known Bugs
 
-### Fixed ✓
-
-1. **~~File list doesn't show filtered results by pattern~~** ✓ FIXED
-   - **Description**: When entering a pattern like `*.java` in the search input, the file list doesn't update to show only matching files
-   - **Status**: Fixed - Added `matchesFilePattern()` function that properly handles glob patterns
-   - **Implementation**: Now supports both glob patterns (`*.go`) and substring matching
-   - **Location**: `model.go` (matchesFilePattern function)
-   - **Date Fixed**: 2025-10-14
-
-2. **~~Missing file preview panel~~** ✓ FIXED
-   - **Description**: No right-side preview panel showing file contents
-   - **Status**: Fixed - Added split-screen preview panel
-   - **Features**:
-     - Toggle preview with `p` key
-     - Scroll with PgUp/PgDn or Ctrl+U/Ctrl+D
-     - Shows file contents in real-time
-     - Displays line count and scroll position
-     - Adjusts layout to 50/50 split when enabled
-   - **Location**: `model.go` (renderPreview functions)
-   - **Date Fixed**: 2025-10-14
 
 ### High Priority
 
+1. keyboard hints only show when preview is hidden. 
+
+2. toggle preview key (p) is ok, but also support ctrl+p  so that it works when focus is in search
+
+
+3. preview key should toggle between states:
+
+- hidden,
+- show plain
+- diff with "source file"
+- syntax highlight (if possible)
+
+
 ### Medium Priority
+
+4. possibility to resize previe panel for instance pressing ctrl+left/right to adjust width of preview panel. Adjust with 10% increments/decrements.
+
 
 3. **Pattern matching inconsistency**
    - **Description**: Pattern matching uses both glob (filepath.Match) and substring matching, can be confusing
@@ -42,6 +38,15 @@ This document tracks known bugs, planned improvements, and feature ideas for the
    - **Location**: `model.go:310-336` (viewConfirm function)
 
 ## Feature Improvements
+
+1. **Git integrations**
+    files that are git tracked and modified should have the option to  be updated in a git commit after sync.
+
+    - after sync, detect if any files were git tracked and modified.
+    -  if so, prompt user to commit changes.
+    -  if user agrees, ensure the synced files are staged in a separate commit in each repo.
+
+    So you need to ask for commit message, and branch name. When given commit message and branch name. create separate worktrees for each repo, stage the files, and commit, and push if possible.
 
 ### UI/UX Enhancements
 
@@ -99,16 +104,6 @@ This document tracks known bugs, planned improvements, and feature ideas for the
      - Prepend
      - Merge sections
 
-9. **Undo functionality**
-   - Keep backup of original files before sync
-   - Allow undo of last sync operation
-   - Store backups in `.multiedit/backups/`
-
-10. **Advanced filtering**
-    - Filter by file size
-    - Filter by modification time
-    - Filter by git status (modified, untracked, etc.)
-    - Combine multiple filters
 
 ### Performance Improvements
 
@@ -170,11 +165,6 @@ This document tracks known bugs, planned improvements, and feature ideas for the
     - Show what would be synced without doing it
     - Useful for testing patterns and selections
     - Add `--dry-run` flag
-
-21. **Watch mode**
-    - Continuously watch source file for changes
-    - Auto-sync to targets when source changes
-    - Useful for development workflows
 
 ## Testing Improvements
 
