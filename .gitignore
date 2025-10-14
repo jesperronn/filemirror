@@ -19,8 +19,8 @@ vendor/
 
 # Build output
 /multiedit
+/multiedit-*
 /dist/
-/bin/
 
 # IDE and editor files
 .vscode/

@@ -208,8 +208,29 @@ Here's a typical workflow for synchronizing configuration files across multiple 
 ### Build
 
 ```bash
+# Simple build
 go build -o multiedit .
+
+# Or use the build script (recommended)
+bin/build
+
+# Build with options
+bin/build --clean          # Clean and build
+bin/build --verbose        # Verbose output
+bin/build --install        # Install to $GOPATH/bin
+
+# Cross-compile
+bin/build -o linux -a amd64   # Build for Linux AMD64
+bin/build -o windows -a amd64 # Build for Windows AMD64
 ```
+
+The build script includes:
+- Automatic version detection from git tags
+- Build time and commit hash embedding
+- Pre-build testing and linting
+- Code formatting checks
+- Binary verification
+- Cross-compilation support
 
 ### Test
 

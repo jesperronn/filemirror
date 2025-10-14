@@ -8,7 +8,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const version = "0.1.0"
+// Build-time variables (set by ldflags)
+var (
+	version   = "0.1.0"
+	buildTime = "unknown"
+	gitCommit = "unknown"
+)
 
 func main() {
 	var workDir string
@@ -24,6 +29,10 @@ func main() {
 			return
 		case "-v", "--version", "version":
 			fmt.Printf("multiedit version %s\n", version)
+			if buildTime != "unknown" || gitCommit != "unknown" {
+				fmt.Printf("  Build time: %s\n", buildTime)
+				fmt.Printf("  Git commit: %s\n", gitCommit)
+			}
 			return
 		case "-p", "--path":
 			if i+1 < len(args) {
