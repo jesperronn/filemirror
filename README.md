@@ -75,7 +75,8 @@ multiedit [OPTIONS] [PATTERN]
 
 | Key | Action |
 |-----|--------|
-| `TAB` | Cycle focus: Path → Search → File List → Path |
+| `TAB` | Cycle focus forward: Path → Search → File List → Path |
+| `Shift+TAB` | Cycle focus backward: Path ← Search ← File List |
 | `CTRL-R` | Reload files from the current path (Path/Search focus) |
 | `p` | Toggle file preview panel on/off |
 | `PgUp`/`PgDn` | Scroll preview panel (or `CTRL-U`/`CTRL-D`) |
@@ -185,7 +186,7 @@ Here's a typical workflow for synchronizing configuration files across multiple 
 5. Press TAB to move to File List
 6. Use ↑/↓ or k/j to navigate files
 7. Press 's' to mark source, Space to mark targets
-8. Press Enter to confirm, or TAB to return to Path input
+8. Press Enter to confirm, or TAB/Shift+TAB to change focus
 ```
 
 ## How It Works

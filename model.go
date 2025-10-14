@@ -148,7 +148,7 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case "tab":
-		// Cycle focus: path -> search -> file list -> path
+		// Cycle focus forward: path -> search -> file list -> path
 		switch m.focus {
 		case focusPath:
 			m.focus = focusSearch
@@ -160,6 +160,22 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case focusList:
 			m.focus = focusPath
 			m.pathInput.Focus()
+		}
+		return m, nil
+
+	case "shift+tab":
+		// Cycle focus backward: path <- search <- file list <- path
+		switch m.focus {
+		case focusPath:
+			m.focus = focusList
+			m.pathInput.Blur()
+		case focusSearch:
+			m.focus = focusPath
+			m.searchInput.Blur()
+			m.pathInput.Focus()
+		case focusList:
+			m.focus = focusSearch
+			m.searchInput.Focus()
 		}
 		return m, nil
 
