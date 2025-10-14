@@ -38,6 +38,7 @@ go build -o multiedit .
 ## Features
 
 - **Live File Preview**: Split-screen view showing file contents in real-time
+- **Diff Preview Mode**: Compare target files against source with colored diff view
 - **Interactive Path Navigation**: Change directories without leaving the app using TAB and CTRL-R
 - **Dual Input Fields**: Separate, editable Path and Search inputs for maximum flexibility
 - **Glob Pattern Support**: Filter files with wildcards (`*.go`, `*.java`, etc.) or substring matching
@@ -79,6 +80,7 @@ multiedit [OPTIONS] [PATTERN]
 | `Shift+TAB` | Cycle focus backward: Path ← Search ← File List |
 | `CTRL-R` | Reload files from the current path (Path/Search focus) |
 | `p` | Toggle file preview panel on/off |
+| `d` | Toggle diff mode (shows diff vs source when source is selected) |
 | `PgUp`/`PgDn` | Scroll preview panel (or `CTRL-U`/`CTRL-D`) |
 | Type | Edit the focused input (Path or Search) |
 | `↑`/`↓` or `k`/`j` | Navigate through file list (when List is focused) |
@@ -119,8 +121,9 @@ Here's a typical workflow for synchronizing configuration files across multiple 
 #    - Press TAB again to focus on the file list
 #    - Use ↑/↓ or k/j to navigate through files
 
-# 4. Mark files:
+# 4. Mark files and review diffs:
 #    - Press 's' on the "correct" config file to mark it as source
+#    - Press 'd' to toggle diff mode and see differences
 #    - Press Space on target files you want to update (can mark multiple)
 #    - Press Enter to review your selection
 

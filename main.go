@@ -97,9 +97,11 @@ ARGUMENTS:
                        If omitted, shows all files in the current directory tree
 
 KEYBOARD SHORTCUTS:
-    TAB            Cycle focus: Path → Search → File List → Path
+    TAB            Cycle focus forward: Path → Search → File List → Path
+    Shift+TAB      Cycle focus backward: Path ← Search ← File List
     CTRL-R         Reload files from current path (when on Path/Search)
     p              Toggle file preview panel
+    d              Toggle diff mode (shows diff vs source when source is selected)
     PgUp/PgDn      Scroll preview (or CTRL-U/CTRL-D)
     Type           Edit focused input (Path or Search)
     ↑/↓ or k/j     Navigate through file list (when List is focused)
@@ -123,6 +125,7 @@ FEATURES:
     - Interactive path editing - change directories without leaving the app
     - Real-time file filtering with glob pattern support (*.go, *.java, etc.)
     - Live file preview panel - see file contents before syncing
+    - Diff preview mode - compare target files against source with colored diff
     - Searches up to 4 directory levels deep
     - Excludes common directories (node_modules, .git, vendor, etc.)
     - Shows file metadata (size, modified time, git branch)

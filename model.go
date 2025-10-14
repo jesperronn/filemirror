@@ -26,6 +26,13 @@ const (
 	focusList
 )
 
+type previewMode int
+
+const (
+	previewPlain previewMode = iota
+	previewDiff
+)
+
 type model struct {
 	files         []FileInfo
 	filteredFiles []FileInfo
@@ -43,6 +50,7 @@ type model struct {
 	workDir       string // current working directory
 	showPreview   bool   // whether to show file preview panel
 	previewScroll int    // scroll position in preview
+	previewMode   previewMode // plain or diff mode
 }
 
 type scanCompleteMsg struct {
@@ -89,8 +97,9 @@ func initialModel(initialQuery string, initialPath string) model {
 		viewport:      0,
 		focus:         focusPath,
 		workDir:       workDir,
-		showPreview:   true, // Show preview by default
+		showPreview:   true,           // Show preview by default
 		previewScroll: 0,
+		previewMode:   previewPlain, // Start with plain view
 	}
 
 	return m
@@ -183,6 +192,18 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Toggle preview panel
 		m.showPreview = !m.showPreview
 		m.previewScroll = 0
+		return m, nil
+
+	case "d":
+		// Toggle diff mode (only when source is selected)
+		if m.sourceFile != nil {
+			if m.previewMode == previewPlain {
+				m.previewMode = previewDiff
+			} else {
+				m.previewMode = previewPlain
+			}
+			m.previewScroll = 0
+		}
 		return m, nil
 
 	case "pagedown", "ctrl+d":
@@ -396,6 +417,17 @@ func (m model) viewSelect() string {
 	if !m.showPreview {
 		previewHint = "p: show preview"
 	}
+
+	// Add diff toggle hint if source is selected
+	diffHint := ""
+	if m.sourceFile != nil && m.showPreview {
+		if m.previewMode == previewPlain {
+			diffHint = " | d: show diff"
+		} else {
+			diffHint = " | d: plain view"
+		}
+	}
+
 	focusHint := "Path"
 	switch m.focus {
 	case focusPath:
@@ -407,9 +439,9 @@ func (m model) viewSelect() string {
 	}
 	instructions := ""
 	if m.focus == focusList {
-		instructions = fmt.Sprintf("TAB: cycle focus (%s) | %s | s: mark source | SPACE: toggle target | ENTER: confirm | q: quit", focusHint, previewHint)
+		instructions = fmt.Sprintf("TAB: cycle focus (%s) | %s%s | s: source | SPACE: target | ENTER: confirm | q: quit", focusHint, previewHint, diffHint)
 	} else {
-		instructions = fmt.Sprintf("TAB: cycle focus (%s) | CTRL-R: reload | %s | q: quit", focusHint, previewHint)
+		instructions = fmt.Sprintf("TAB: cycle focus (%s) | CTRL-R: reload | %s%s | q: quit", focusHint, previewHint, diffHint)
 	}
 	b.WriteString(instructStyle.Render(instructions) + "\n\n")
 
@@ -528,8 +560,26 @@ func (m model) renderPreview() string {
 		return m.renderPreviewError(fmt.Sprintf("Error reading file: %v", err))
 	}
 
-	// Split content into lines
-	lines := strings.Split(string(content), "\n")
+	// Determine what to show based on preview mode
+	var lines []string
+	var headerTitle string
+
+	if m.previewMode == previewDiff && m.sourceFile != nil {
+		// Show diff against source file
+		sourceFilePath := filepath.Join(m.workDir, m.sourceFile.Path)
+		sourceContent, err := os.ReadFile(sourceFilePath)
+		if err != nil {
+			return m.renderPreviewError(fmt.Sprintf("Error reading source file: %v", err))
+		}
+
+		// Generate diff
+		lines = m.generateDiff(string(sourceContent), string(content))
+		headerTitle = fmt.Sprintf(" Diff: %s → %s ", m.sourceFile.Path, currentFile.Path)
+	} else {
+		// Show plain file content
+		lines = strings.Split(string(content), "\n")
+		headerTitle = fmt.Sprintf(" Preview: %s ", currentFile.Path)
+	}
 
 	// Calculate preview dimensions
 	previewWidth := m.width / 2
@@ -546,7 +596,7 @@ func (m model) renderPreview() string {
 		BorderForeground(lipgloss.Color("240")).
 		BorderLeft(true)
 
-	b.WriteString(headerStyle.Render(fmt.Sprintf(" Preview: %s ", currentFile.Path)) + "\n")
+	b.WriteString(headerStyle.Render(headerTitle) + "\n")
 
 	// Preview content
 	contentStyle := lipgloss.NewStyle().
@@ -566,7 +616,24 @@ func (m model) renderPreview() string {
 		if len(line) > previewWidth-3 {
 			line = line[:previewWidth-6] + "..."
 		}
-		b.WriteString(contentStyle.Render(line) + "\n")
+
+		// Color diff lines if in diff mode
+		if m.previewMode == previewDiff && m.sourceFile != nil {
+			lineStyle := contentStyle
+			if len(line) > 0 {
+				switch line[0] {
+				case '+':
+					lineStyle = contentStyle.Foreground(lipgloss.Color("10")) // Green for additions
+				case '-':
+					lineStyle = contentStyle.Foreground(lipgloss.Color("9")) // Red for deletions
+				case '@':
+					lineStyle = contentStyle.Foreground(lipgloss.Color("12")) // Blue for context markers
+				}
+			}
+			b.WriteString(lineStyle.Render(line) + "\n")
+		} else {
+			b.WriteString(contentStyle.Render(line) + "\n")
+		}
 	}
 
 	// Fill remaining space if content is short
@@ -696,4 +763,42 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// generateDiff generates a simple unified diff between two strings
+func (m model) generateDiff(source, target string) []string {
+	sourceLines := strings.Split(source, "\n")
+	targetLines := strings.Split(target, "\n")
+
+	var result []string
+	result = append(result, fmt.Sprintf("@@ Source: %s → Target @@", m.sourceFile.Path))
+
+	// Simple line-by-line comparison
+	maxLen := max(len(sourceLines), len(targetLines))
+
+	for i := 0; i < maxLen; i++ {
+		var sourceLine, targetLine string
+
+		if i < len(sourceLines) {
+			sourceLine = sourceLines[i]
+		}
+		if i < len(targetLines) {
+			targetLine = targetLines[i]
+		}
+
+		// If lines are different, show both
+		if sourceLine != targetLine {
+			if i < len(sourceLines) {
+				result = append(result, fmt.Sprintf("-%s", sourceLine))
+			}
+			if i < len(targetLines) {
+				result = append(result, fmt.Sprintf("+%s", targetLine))
+			}
+		} else {
+			// Lines are the same, show context
+			result = append(result, fmt.Sprintf(" %s", sourceLine))
+		}
+	}
+
+	return result
 }
