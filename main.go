@@ -99,6 +99,8 @@ ARGUMENTS:
 KEYBOARD SHORTCUTS:
     TAB            Switch between Path and Search inputs
     CTRL-R         Reload files from current path
+    p              Toggle file preview panel
+    PgUp/PgDn      Scroll preview (or CTRL-U/CTRL-D)
     Type           Edit focused input (Path or Search)
     ↑/↓ or k/j     Navigate through file list (when Search is focused)
     CTRL-S         Mark current file as SOURCE
@@ -118,12 +120,13 @@ WORKFLOW:
 
 FEATURES:
     - Interactive path editing - change directories without leaving the app
-    - Real-time file filtering with pattern matching
+    - Real-time file filtering with glob pattern support (*.go, *.java, etc.)
+    - Live file preview panel - see file contents before syncing
     - Searches up to 4 directory levels deep
     - Excludes common directories (node_modules, .git, vendor, etc.)
     - Shows file metadata (size, modified time, git branch)
     - Safe atomic file operations preserving permissions
-    - Pattern matching with wildcards (*.go, *.json, etc.)
+    - Split-screen layout with scrollable preview
 
 EXAMPLES:
     multiedit                           # Start in current directory

@@ -40,6 +40,8 @@ type model struct {
 	viewport      int // for scrolling
 	focus         inputFocus
 	workDir       string // current working directory
+	showPreview   bool   // whether to show file preview panel
+	previewScroll int    // scroll position in preview
 }
 
 type scanCompleteMsg struct {
@@ -86,6 +88,8 @@ func initialModel(initialQuery string, initialPath string) model {
 		viewport:      0,
 		focus:         focusSearch,
 		workDir:       workDir,
+		showPreview:   true, // Show preview by default
+		previewScroll: 0,
 	}
 
 	return m
@@ -152,6 +156,29 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.focus = focusSearch
 			m.pathInput.Blur()
 			m.searchInput.Focus()
+		}
+		return m, nil
+
+	case "p":
+		// Toggle preview panel
+		m.showPreview = !m.showPreview
+		m.previewScroll = 0
+		return m, nil
+
+	case "pagedown", "ctrl+d":
+		// Scroll preview down
+		if m.showPreview {
+			m.previewScroll += 10
+		}
+		return m, nil
+
+	case "pageup", "ctrl+u":
+		// Scroll preview up
+		if m.showPreview {
+			m.previewScroll -= 10
+			if m.previewScroll < 0 {
+				m.previewScroll = 0
+			}
 		}
 		return m, nil
 
@@ -262,21 +289,50 @@ func (m *model) filterFiles() {
 	query := strings.ToLower(m.searchInput.Value())
 	if query == "" {
 		m.filteredFiles = m.files
+		m.resetCursorIfNeeded()
 		return
 	}
 
 	m.filteredFiles = []FileInfo{}
 	for _, file := range m.files {
-		if strings.Contains(strings.ToLower(file.Path), query) {
+		if matchesFilePattern(file.Path, query) {
 			m.filteredFiles = append(m.filteredFiles, file)
 		}
 	}
 
+	m.resetCursorIfNeeded()
+}
+
+func (m *model) resetCursorIfNeeded() {
 	// Reset cursor if out of bounds
 	if m.cursor >= len(m.filteredFiles) {
 		m.cursor = max(0, len(m.filteredFiles)-1)
 	}
 	m.adjustViewport()
+}
+
+// matchesFilePattern checks if a file path matches a pattern
+// Supports both glob patterns (*.go) and substring matching
+func matchesFilePattern(filePath, pattern string) bool {
+	pattern = strings.ToLower(pattern)
+	filePath = strings.ToLower(filePath)
+
+	// Extract just the filename from the path for glob matching
+	filename := filepath.Base(filePath)
+
+	// If pattern contains *, use glob matching on filename
+	if strings.Contains(pattern, "*") {
+		matched, _ := filepath.Match(pattern, filename)
+		if matched {
+			return true
+		}
+		// Also try matching against full path for patterns like "src/*.go"
+		matched, _ = filepath.Match(pattern, filePath)
+		return matched
+	}
+
+	// Otherwise, simple substring match on full path
+	return strings.Contains(filePath, pattern)
 }
 
 func (m *model) adjustViewport() {
@@ -316,7 +372,11 @@ func (m model) viewSelect() string {
 
 	// Instructions
 	instructStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	b.WriteString(instructStyle.Render("TAB: switch input | CTRL-R: reload | CTRL-S: mark source | CTRL-E: toggle target | ENTER: sync | q: quit") + "\n\n")
+	previewHint := "p: toggle preview"
+	if !m.showPreview {
+		previewHint = "p: show preview"
+	}
+	b.WriteString(instructStyle.Render(fmt.Sprintf("TAB: switch input | CTRL-R: reload | %s | CTRL-S: mark source | CTRL-E: toggle target | q: quit", previewHint)) + "\n\n")
 
 	// Path input
 	pathLabel := "Path:   "
@@ -338,9 +398,23 @@ func (m model) viewSelect() string {
 		b.WriteString(sourceStyle.Render(fmt.Sprintf("Source: %s", m.sourceFile.Path)) + "\n\n")
 	}
 
+	// Determine layout based on preview setting
+	var fileListWidth int
+	var previewContent string
+
+	if m.showPreview {
+		// Split screen: 50% file list, 50% preview
+		fileListWidth = m.width / 2
+		previewContent = m.renderPreview()
+	} else {
+		// Full width for file list
+		fileListWidth = m.width
+	}
+
 	// File list header
 	headerRowStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("8"))
-	b.WriteString(headerRowStyle.Render(fmt.Sprintf("%-50s %-15s %-20s %s\n", "PATH", "SIZE", "MODIFIED", "BRANCH")))
+	pathWidth := min(fileListWidth-40, 50) // Adjust based on available space
+	b.WriteString(headerRowStyle.Render(fmt.Sprintf("%-*s %-10s %-15s\n", pathWidth, "PATH", "SIZE", "MODIFIED")))
 
 	// File list
 	maxVisible := m.height - 10
@@ -377,13 +451,14 @@ func (m model) viewSelect() string {
 			style = style.Foreground(lipgloss.Color("10"))
 		}
 
-		line := fmt.Sprintf("%s[%s] %-47s %-15s %-20s %s",
+		pathDisplayWidth := pathWidth - 5 // Account for cursor and marker
+		line := fmt.Sprintf("%s[%s] %-*s %-10s %-15s",
 			cursor,
 			marker,
-			truncate(file.Path, 47),
+			pathDisplayWidth,
+			truncate(file.Path, pathDisplayWidth),
 			formatSize(file.Size),
 			file.Modified.Format("2006-01-02 15:04"),
-			file.Branch,
 		)
 
 		b.WriteString(style.Render(line) + "\n")
@@ -394,7 +469,119 @@ func (m model) viewSelect() string {
 	b.WriteString("\n" + footerStyle.Render(fmt.Sprintf("Showing %d of %d files | Targets: %d",
 		len(m.filteredFiles), len(m.files), len(m.selected))))
 
+	// If preview is enabled, combine file list and preview side by side
+	if m.showPreview && previewContent != "" {
+		fileList := b.String()
+		return lipgloss.JoinHorizontal(lipgloss.Top, fileList, previewContent)
+	}
+
 	return b.String()
+}
+
+// renderPreview renders the file preview panel
+func (m model) renderPreview() string {
+	if len(m.filteredFiles) == 0 || m.cursor >= len(m.filteredFiles) {
+		return m.renderEmptyPreview()
+	}
+
+	currentFile := m.filteredFiles[m.cursor]
+	filePath := filepath.Join(m.workDir, currentFile.Path)
+
+	// Read file content
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return m.renderPreviewError(fmt.Sprintf("Error reading file: %v", err))
+	}
+
+	// Split content into lines
+	lines := strings.Split(string(content), "\n")
+
+	// Calculate preview dimensions
+	previewWidth := m.width / 2
+	previewHeight := m.height - 10
+
+	var b strings.Builder
+
+	// Preview header
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("12")).
+		Width(previewWidth).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderLeft(true)
+
+	b.WriteString(headerStyle.Render(fmt.Sprintf(" Preview: %s ", currentFile.Path)) + "\n")
+
+	// Preview content
+	contentStyle := lipgloss.NewStyle().
+		Width(previewWidth).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderLeft(true).
+		PaddingLeft(1)
+
+	// Render visible lines
+	start := m.previewScroll
+	end := min(start+previewHeight, len(lines))
+
+	for i := start; i < end; i++ {
+		line := lines[i]
+		// Truncate long lines
+		if len(line) > previewWidth-3 {
+			line = line[:previewWidth-6] + "..."
+		}
+		b.WriteString(contentStyle.Render(line) + "\n")
+	}
+
+	// Fill remaining space if content is short
+	for i := end - start; i < previewHeight; i++ {
+		b.WriteString(contentStyle.Render("") + "\n")
+	}
+
+	// Preview footer
+	footerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Width(previewWidth).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderLeft(true)
+
+	scrollInfo := ""
+	if len(lines) > previewHeight {
+		scrollInfo = fmt.Sprintf(" [%d-%d of %d lines] PgUp/PgDn to scroll ", start+1, end, len(lines))
+	} else {
+		scrollInfo = fmt.Sprintf(" [%d lines] ", len(lines))
+	}
+	b.WriteString(footerStyle.Render(scrollInfo))
+
+	return b.String()
+}
+
+func (m model) renderEmptyPreview() string {
+	previewWidth := m.width / 2
+	style := lipgloss.NewStyle().
+		Width(previewWidth).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderLeft(true).
+		Foreground(lipgloss.Color("240")).
+		Padding(1)
+
+	return style.Render("No file selected")
+}
+
+func (m model) renderPreviewError(errMsg string) string {
+	previewWidth := m.width / 2
+	style := lipgloss.NewStyle().
+		Width(previewWidth).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderLeft(true).
+		Foreground(lipgloss.Color("9")).
+		Padding(1)
+
+	return style.Render(errMsg)
 }
 
 func (m model) viewConfirm() string {

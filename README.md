@@ -37,9 +37,10 @@ go build -o multiedit .
 
 ## Features
 
+- **Live File Preview**: Split-screen view showing file contents in real-time
 - **Interactive Path Navigation**: Change directories without leaving the app using TAB and CTRL-R
 - **Dual Input Fields**: Separate, editable Path and Search inputs for maximum flexibility
-- **Real-Time File Search**: Filter files with pattern matching (wildcards supported)
+- **Glob Pattern Support**: Filter files with wildcards (`*.go`, `*.java`, etc.) or substring matching
 - **Multi-File Sync**: Copy content from one source file to multiple targets at once
 - **File Metadata Display**: Shows path, size, modification time, and git branch
 - **Safe Operations**: Atomic file copying that preserves permissions
@@ -76,6 +77,8 @@ multiedit [OPTIONS] [PATTERN]
 |-----|--------|
 | `TAB` | Switch between Path and Search input fields |
 | `CTRL-R` | Reload files from the current path |
+| `p` | Toggle file preview panel on/off |
+| `PgUp`/`PgDn` | Scroll preview panel (or `CTRL-U`/`CTRL-D`) |
 | Type | Edit the focused input (Path or Search) |
 | `↑`/`↓` or `k`/`j` | Navigate through file list (when Search is focused) |
 | `CTRL-S` | Mark current file as SOURCE |
