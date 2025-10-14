@@ -30,6 +30,9 @@ go build -o multiedit .
 
 # Search for files containing "config"
 ./multiedit "config"
+
+# Search in a different directory
+./multiedit --path ~/projects "*.go"
 ```
 
 ## Features
@@ -45,8 +48,18 @@ go build -o multiedit .
 ## Usage
 
 ```bash
-multiedit [PATTERN]
+multiedit [OPTIONS] [PATTERN]
 ```
+
+### Options
+
+- `-p, --path PATH`: Change to directory PATH before searching
+  - Supports both absolute and relative paths
+  - Allows you to search files in any directory without changing your current location
+  - Example: `multiedit --path ~/projects "*.go"`
+
+- `-h, --help`: Show help message
+- `-v, --version`: Show version information
 
 ### Arguments
 
@@ -107,16 +120,9 @@ Here's a typical workflow for synchronizing configuration files across multiple 
 - **Copy templates** to multiple locations in a monorepo
 - **Standardize linting configs** across projects
 
-## Flags
-
-```bash
--h, --help       Show help message
--v, --version    Show version information
-```
-
 ## Examples
 
-### Search all Go files
+### Search all Go files in current directory
 ```bash
 ./multiedit "*.go"
 ```
@@ -129,6 +135,21 @@ Here's a typical workflow for synchronizing configuration files across multiple 
 ### Search for files containing "component"
 ```bash
 ./multiedit "component"
+```
+
+### Search in a specific directory
+```bash
+./multiedit --path /path/to/project "*.go"
+```
+
+### Search in parent directory
+```bash
+./multiedit --path .. "config.json"
+```
+
+### Search in home directory subdirectory
+```bash
+./multiedit -p ~/Documents/projects "*.md"
 ```
 
 ### Search all files (no filter)
