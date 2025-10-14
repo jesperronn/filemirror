@@ -21,8 +21,9 @@ const (
 type inputFocus int
 
 const (
-	focusSearch inputFocus = iota
-	focusPath
+	focusPath inputFocus = iota
+	focusSearch
+	focusList
 )
 
 type model struct {
@@ -86,7 +87,7 @@ func initialModel(initialQuery string, initialPath string) model {
 		height:        24,
 		mode:          modeSelect,
 		viewport:      0,
-		focus:         focusSearch,
+		focus:         focusPath,
 		workDir:       workDir,
 		showPreview:   true, // Show preview by default
 		previewScroll: 0,
@@ -132,10 +133,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Update the focused input
+	// Update the focused input (only if not on file list)
 	if m.focus == focusSearch {
 		m.searchInput, cmd = m.searchInput.Update(msg)
-	} else {
+	} else if m.focus == focusPath {
 		m.pathInput, cmd = m.pathInput.Update(msg)
 	}
 	return m, cmd
@@ -147,15 +148,18 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case "tab":
-		// Toggle focus between search and path inputs
-		if m.focus == focusSearch {
-			m.focus = focusPath
-			m.searchInput.Blur()
-			m.pathInput.Focus()
-		} else {
+		// Cycle focus: path -> search -> file list -> path
+		switch m.focus {
+		case focusPath:
 			m.focus = focusSearch
 			m.pathInput.Blur()
 			m.searchInput.Focus()
+		case focusSearch:
+			m.focus = focusList
+			m.searchInput.Blur()
+		case focusList:
+			m.focus = focusPath
+			m.pathInput.Focus()
 		}
 		return m, nil
 
@@ -206,7 +210,7 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "up", "k":
-		if m.focus == focusSearch {
+		if m.focus == focusList {
 			if m.cursor > 0 {
 				m.cursor--
 				m.adjustViewport()
@@ -214,23 +218,23 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "down", "j":
-		if m.focus == focusSearch {
+		if m.focus == focusList {
 			if m.cursor < len(m.filteredFiles)-1 {
 				m.cursor++
 				m.adjustViewport()
 			}
 		}
 
-	case "ctrl+s":
-		// Mark current file as source
-		if m.cursor < len(m.filteredFiles) {
+	case "s":
+		// Mark current file as source (when on file list)
+		if m.focus == focusList && m.cursor < len(m.filteredFiles) {
 			file := m.filteredFiles[m.cursor]
 			m.sourceFile = &file
 		}
 
-	case "ctrl+e":
-		// Toggle target selection
-		if m.cursor < len(m.filteredFiles) {
+	case " ": // Space
+		// Toggle target selection (when on file list)
+		if m.focus == focusList && m.cursor < len(m.filteredFiles) {
 			m.selected[m.cursor] = !m.selected[m.cursor]
 		}
 
@@ -376,19 +380,34 @@ func (m model) viewSelect() string {
 	if !m.showPreview {
 		previewHint = "p: show preview"
 	}
-	b.WriteString(instructStyle.Render(fmt.Sprintf("TAB: switch input | CTRL-R: reload | %s | CTRL-S: mark source | CTRL-E: toggle target | q: quit", previewHint)) + "\n\n")
+	focusHint := "Path"
+	switch m.focus {
+	case focusPath:
+		focusHint = "Path"
+	case focusSearch:
+		focusHint = "Search"
+	case focusList:
+		focusHint = "List"
+	}
+	instructions := ""
+	if m.focus == focusList {
+		instructions = fmt.Sprintf("TAB: cycle focus (%s) | %s | s: mark source | SPACE: toggle target | ENTER: confirm | q: quit", focusHint, previewHint)
+	} else {
+		instructions = fmt.Sprintf("TAB: cycle focus (%s) | CTRL-R: reload | %s | q: quit", focusHint, previewHint)
+	}
+	b.WriteString(instructStyle.Render(instructions) + "\n\n")
 
 	// Path input
-	pathLabel := "Path:   "
+	pathLabel := "  Path:   "
 	if m.focus == focusPath {
-		pathLabel = "> Path: "
+		pathLabel = "→ Path:   "
 	}
 	b.WriteString(pathLabel + m.pathInput.View() + "\n")
 
 	// Search input
-	searchLabel := "Search: "
+	searchLabel := "  Search: "
 	if m.focus == focusSearch {
-		searchLabel = "> Search: "
+		searchLabel = "→ Search: "
 	}
 	b.WriteString(searchLabel + m.searchInput.View() + "\n\n")
 

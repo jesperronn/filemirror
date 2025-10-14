@@ -97,14 +97,14 @@ ARGUMENTS:
                        If omitted, shows all files in the current directory tree
 
 KEYBOARD SHORTCUTS:
-    TAB            Switch between Path and Search inputs
-    CTRL-R         Reload files from current path
+    TAB            Cycle focus: Path → Search → File List → Path
+    CTRL-R         Reload files from current path (when on Path/Search)
     p              Toggle file preview panel
     PgUp/PgDn      Scroll preview (or CTRL-U/CTRL-D)
     Type           Edit focused input (Path or Search)
-    ↑/↓ or k/j     Navigate through file list (when Search is focused)
-    CTRL-S         Mark current file as SOURCE
-    CTRL-E         Toggle current file as TARGET (can mark multiple)
+    ↑/↓ or k/j     Navigate through file list (when List is focused)
+    s              Mark current file as SOURCE (when List is focused)
+    Space          Toggle current file as TARGET (when List is focused)
     Enter          Proceed to confirmation (requires source + targets)
     y              Confirm and execute sync operation
     n / Esc        Cancel operation and return to selection
@@ -112,11 +112,12 @@ KEYBOARD SHORTCUTS:
 
 WORKFLOW:
     1. Run multiedit with optional path and search pattern
-    2. Use TAB to switch between Path and Search inputs
+    2. Path input is focused - type to edit or press TAB to move to Search
     3. Edit the path to navigate to different directories (press CTRL-R to reload)
-    4. Type in Search to filter files by pattern
-    5. Navigate with ↑/↓ or k/j, mark source (CTRL-S) and targets (CTRL-E)
-    6. Press Enter to review, then 'y' to confirm and sync
+    4. Press TAB to move to Search, type pattern to filter files
+    5. Press TAB to move to File List, use ↑/↓ or k/j to navigate
+    6. Press 's' to mark source, Space to toggle targets
+    7. Press Enter to review, then 'y' to confirm and sync
 
 FEATURES:
     - Interactive path editing - change directories without leaving the app
@@ -135,10 +136,11 @@ EXAMPLES:
     multiedit -p /tmp config.json       # Start in /tmp, filter config.json
 
     Once running:
-    - Press TAB to edit the path field
-    - Type a new path and press CTRL-R to navigate there
-    - Press TAB again to go back to search
-    - Edit search pattern to filter files
+    - Path is focused by default - type to edit
+    - Press TAB to move to Search field
+    - Type pattern to filter, press TAB to move to file list
+    - Use ↑/↓ or k/j to navigate, 's' for source, Space for targets
+    - Press Enter to confirm sync, TAB to return to Path input
 
 REPOSITORY:
     https://github.com/jesper/multiedit

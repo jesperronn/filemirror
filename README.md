@@ -75,14 +75,14 @@ multiedit [OPTIONS] [PATTERN]
 
 | Key | Action |
 |-----|--------|
-| `TAB` | Switch between Path and Search input fields |
-| `CTRL-R` | Reload files from the current path |
+| `TAB` | Cycle focus: Path → Search → File List → Path |
+| `CTRL-R` | Reload files from the current path (Path/Search focus) |
 | `p` | Toggle file preview panel on/off |
 | `PgUp`/`PgDn` | Scroll preview panel (or `CTRL-U`/`CTRL-D`) |
 | Type | Edit the focused input (Path or Search) |
-| `↑`/`↓` or `k`/`j` | Navigate through file list (when Search is focused) |
-| `CTRL-S` | Mark current file as SOURCE |
-| `CTRL-E` | Toggle current file as TARGET (can mark multiple) |
+| `↑`/`↓` or `k`/`j` | Navigate through file list (when List is focused) |
+| `s` | Mark current file as SOURCE (when List is focused) |
+| `Space` | Toggle current file as TARGET (when List is focused) |
 | `Enter` | Proceed to confirmation (requires source + targets) |
 | `y` | Confirm and execute sync operation |
 | `n` / `Esc` | Cancel operation and return to selection |
@@ -111,15 +111,16 @@ Here's a typical workflow for synchronizing configuration files across multiple 
 #    Search: config.json                 (editable)
 
 # 3. Navigate and edit:
-#    - Press TAB to switch between Path and Search inputs
+#    - Press TAB to cycle focus: Path → Search → File List
 #    - Edit the Path field to navigate to different directories
 #    - Press CTRL-R to reload files from the new path
 #    - Edit the Search field to filter files by pattern
-#    - Use ↑/↓ or k/j to navigate through the file list
+#    - Press TAB again to focus on the file list
+#    - Use ↑/↓ or k/j to navigate through files
 
 # 4. Mark files:
-#    - Press CTRL-S on the "correct" config file to mark it as source
-#    - Press CTRL-E on target files you want to update
+#    - Press 's' on the "correct" config file to mark it as source
+#    - Press Space on target files you want to update (can mark multiple)
 #    - Press Enter to review your selection
 
 # 5. Confirm the sync:
@@ -178,12 +179,13 @@ Here's a typical workflow for synchronizing configuration files across multiple 
 ### Interactive navigation (once running)
 ```
 1. Start: ./multiedit
-2. Press TAB to focus the Path input
-3. Type a new path (e.g., ~/projects/backend)
-4. Press CTRL-R to navigate there
-5. Press TAB to focus Search
-6. Type a pattern (e.g., *.ts)
-7. Navigate and sync files as needed
+2. Path input is focused by default - type to edit
+3. Press TAB to move to Search input
+4. Type a pattern (e.g., *.ts)
+5. Press TAB to move to File List
+6. Use ↑/↓ or k/j to navigate files
+7. Press 's' to mark source, Space to mark targets
+8. Press Enter to confirm, or TAB to return to Path input
 ```
 
 ## How It Works
