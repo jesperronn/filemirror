@@ -51,6 +51,7 @@ type model struct {
 	showPreview   bool        // whether to show file preview panel
 	previewScroll int         // scroll position in preview
 	previewMode   previewMode // plain or diff mode
+	showHelp      bool        // whether to show help overlay
 }
 
 type scanCompleteMsg struct {
@@ -154,6 +155,18 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
+
+	case "?":
+		// Toggle help overlay
+		m.showHelp = !m.showHelp
+		return m, nil
+
+	case "esc":
+		// Close help overlay if open
+		if m.showHelp {
+			m.showHelp = false
+			return m, nil
+		}
 
 	case "tab":
 		// Cycle focus forward: path -> search -> file list -> path
@@ -393,14 +406,22 @@ func (m model) View() string {
 		return fmt.Sprintf("Error: %v\n\nPress q to quit.\n", m.err)
 	}
 
+	var baseView string
 	switch m.mode {
 	case modeSelect:
-		return m.viewSelect()
+		baseView = m.viewSelect()
 	case modeConfirm:
-		return m.viewConfirm()
+		baseView = m.viewConfirm()
+	default:
+		return ""
 	}
 
-	return ""
+	// Overlay help modal if active
+	if m.showHelp {
+		return m.renderHelpOverlay(baseView)
+	}
+
+	return baseView
 }
 
 func (m model) viewSelect() string {
@@ -410,39 +431,43 @@ func (m model) viewSelect() string {
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))
 	b.WriteString(headerStyle.Render("MultiEdit - File Synchronization Tool") + "\n\n")
 
-	// Instructions
+	// Context-sensitive keyboard hints
 	instructStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	previewHint := "p: toggle preview"
-	if !m.showPreview {
-		previewHint = "p: show preview"
-	}
+	var hints string
 
-	// Add diff toggle hint if source is selected
-	diffHint := ""
-	if m.sourceFile != nil && m.showPreview {
-		if m.previewMode == previewPlain {
-			diffHint = " | d: show diff"
-		} else {
-			diffHint = " | d: plain view"
-		}
-	}
-
-	focusHint := "Path"
 	switch m.focus {
 	case focusPath:
-		focusHint = "Path"
+		hints = "PATH: Type to edit • CTRL-R: reload • TAB: next • ?: help • q: quit"
 	case focusSearch:
-		focusHint = "Search"
+		hints = "SEARCH: Type pattern (*.go, config) • TAB: next • Shift+TAB: prev • ?: help • q: quit"
 	case focusList:
-		focusHint = "List"
+		var fileHints []string
+		fileHints = append(fileHints, "↑/↓ or k/j: navigate")
+		fileHints = append(fileHints, "s: set source")
+		fileHints = append(fileHints, "SPACE: toggle target")
+		if m.sourceFile != nil && len(m.selected) > 0 {
+			fileHints = append(fileHints, "ENTER: confirm sync")
+		}
+		if m.showPreview {
+			fileHints = append(fileHints, "p: hide preview")
+			if m.sourceFile != nil {
+				if m.previewMode == previewPlain {
+					fileHints = append(fileHints, "d: show diff")
+				} else {
+					fileHints = append(fileHints, "d: plain view")
+				}
+			}
+			fileHints = append(fileHints, "PgUp/PgDn: scroll")
+		} else {
+			fileHints = append(fileHints, "p: show preview")
+		}
+		fileHints = append(fileHints, "TAB: next")
+		fileHints = append(fileHints, "?: help")
+		fileHints = append(fileHints, "q: quit")
+		hints = "FILE LIST: " + strings.Join(fileHints, " • ")
 	}
-	instructions := ""
-	if m.focus == focusList {
-		instructions = fmt.Sprintf("TAB: cycle focus (%s) | %s%s | s: source | SPACE: target | ENTER: confirm | q: quit", focusHint, previewHint, diffHint)
-	} else {
-		instructions = fmt.Sprintf("TAB: cycle focus (%s) | CTRL-R: reload | %s%s | q: quit", focusHint, previewHint, diffHint)
-	}
-	b.WriteString(instructStyle.Render(instructions) + "\n\n")
+
+	b.WriteString(instructStyle.Render(hints) + "\n\n")
 
 	// Path input with border
 	pathBorderColor := lipgloss.Color("240")
@@ -842,4 +867,102 @@ func (m model) generateDiff(source, target string) []string {
 	}
 
 	return result
+}
+
+// renderHelpOverlay renders the help modal overlay
+func (m model) renderHelpOverlay(baseView string) string {
+	helpContent := `KEYBOARD SHORTCUTS
+
+NAVIGATION
+  TAB             Cycle focus forward: Path → Search → File List → Path
+  Shift+TAB       Cycle focus backward
+
+PATH INPUT
+  Type            Edit working directory path
+  CTRL-R          Reload files from current path
+
+SEARCH INPUT
+  Type            Filter files by pattern
+                  Examples: *.go, config.json, component
+
+FILE LIST
+  ↑ / ↓           Navigate up/down
+  k / j           Navigate up/down (vim-style)
+  s               Mark current file as SOURCE
+  SPACE           Toggle current file as TARGET
+  ENTER           Proceed to confirmation (requires source + targets)
+
+PREVIEW PANEL
+  p               Toggle preview panel on/off
+  d               Toggle diff mode (when source is selected)
+  PgUp / PgDn     Scroll preview up/down
+  CTRL-U / CTRL-D Scroll preview up/down
+
+GENERAL
+  ?               Toggle this help screen
+  q / CTRL-C      Quit program
+  ESC             Close help / Cancel operation
+
+WORKFLOW
+  1. Navigate to FILE LIST (press TAB if needed)
+  2. Use ↑/↓ or k/j to find your source file
+  3. Press 's' to mark it as source
+  4. Navigate to target files and press SPACE to select them
+  5. Press ENTER to review, then 'y' to confirm sync
+
+Press ESC or ? to close this help`
+
+	// Calculate modal dimensions
+	modalWidth := min(m.width-4, 80)
+	modalHeight := min(m.height-4, 35)
+
+	// Create modal style
+	modalStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("12")).
+		Padding(1, 2).
+		Width(modalWidth).
+		MaxWidth(modalWidth)
+
+	// Title style
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("12")).
+		Align(lipgloss.Center).
+		Width(modalWidth - 4)
+
+	// Content style
+	contentStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252"))
+
+	// Build modal content
+	var modalContent strings.Builder
+	modalContent.WriteString(titleStyle.Render("MULTIEDIT HELP") + "\n\n")
+	modalContent.WriteString(contentStyle.Render(helpContent))
+
+	modal := modalStyle.Render(modalContent.String())
+
+	// Center the modal on screen
+	verticalPadding := (m.height - modalHeight) / 2
+	if verticalPadding < 0 {
+		verticalPadding = 0
+	}
+
+	var result strings.Builder
+	for i := 0; i < verticalPadding; i++ {
+		result.WriteString("\n")
+	}
+
+	// Center horizontally
+	horizontalPadding := (m.width - modalWidth) / 2
+	if horizontalPadding < 0 {
+		horizontalPadding = 0
+	}
+
+	modalLines := strings.Split(modal, "\n")
+	for _, line := range modalLines {
+		result.WriteString(strings.Repeat(" ", horizontalPadding) + line + "\n")
+	}
+
+	return result.String()
 }
