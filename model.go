@@ -506,7 +506,10 @@ func (m model) viewSelect() string {
 	}
 
 	// File list header
-	headerRowStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))
+	headerRowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
+	if m.focus == focusList {
+		headerRowStyle = headerRowStyle.Bold(true)
+	}
 	pathWidth := min(fileListWidth-10, 50) // Adjust based on available space
 	fileListContent.WriteString(headerRowStyle.Render(fmt.Sprintf("%-*s %-10s %-15s", pathWidth, "FILE LIST", "SIZE", "MODIFIED")) + "\n")
 
