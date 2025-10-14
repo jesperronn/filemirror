@@ -62,14 +62,14 @@ func initialModel(initialQuery string, initialPath string) model {
 	// Search input
 	searchInput := textinput.New()
 	searchInput.Placeholder = "Search pattern (e.g., *.go, config.json)..."
-	searchInput.Focus()
 	searchInput.CharLimit = 156
 	searchInput.Width = 50
 	searchInput.SetValue(initialQuery)
 
-	// Path input
+	// Path input (focused by default)
 	pathInput := textinput.New()
 	pathInput.Placeholder = "Working directory..."
+	pathInput.Focus() // Path is focused initially
 	pathInput.CharLimit = 256
 	pathInput.Width = 50
 
