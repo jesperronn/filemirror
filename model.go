@@ -445,19 +445,37 @@ func (m model) viewSelect() string {
 	}
 	b.WriteString(instructStyle.Render(instructions) + "\n\n")
 
-	// Path input
-	pathLabel := "  Path:   "
+	// Path input with border
+	pathBorderColor := lipgloss.Color("240")
+	pathLabelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
 	if m.focus == focusPath {
-		pathLabel = "→ Path:   "
+		pathBorderColor = lipgloss.Color("12") // Bright blue when focused
+		pathLabelStyle = pathLabelStyle.Bold(true)
 	}
-	b.WriteString(pathLabel + m.pathInput.View() + "\n")
+	pathBox := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(pathBorderColor).
+		Padding(0, 1).
+		Width(m.width - 4)
 
-	// Search input
-	searchLabel := "  Search: "
+	pathContent := pathLabelStyle.Render("PATH") + ": " + m.pathInput.View()
+	b.WriteString(pathBox.Render(pathContent) + "\n")
+
+	// Search input with border
+	searchBorderColor := lipgloss.Color("240")
+	searchLabelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
 	if m.focus == focusSearch {
-		searchLabel = "→ Search: "
+		searchBorderColor = lipgloss.Color("12") // Bright blue when focused
+		searchLabelStyle = searchLabelStyle.Bold(true)
 	}
-	b.WriteString(searchLabel + m.searchInput.View() + "\n\n")
+	searchBox := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(searchBorderColor).
+		Padding(0, 1).
+		Width(m.width - 4)
+
+	searchContent := searchLabelStyle.Render("SEARCH") + ": " + m.searchInput.View()
+	b.WriteString(searchBox.Render(searchContent) + "\n\n")
 
 	// Source file indicator
 	if m.sourceFile != nil {
@@ -478,13 +496,22 @@ func (m model) viewSelect() string {
 		fileListWidth = m.width
 	}
 
+	// File list with border
+	var fileListContent strings.Builder
+
+	// File list border
+	listBorderColor := lipgloss.Color("240")
+	if m.focus == focusList {
+		listBorderColor = lipgloss.Color("12") // Bright blue when focused
+	}
+
 	// File list header
-	headerRowStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("8"))
-	pathWidth := min(fileListWidth-40, 50) // Adjust based on available space
-	b.WriteString(headerRowStyle.Render(fmt.Sprintf("%-*s %-10s %-15s\n", pathWidth, "PATH", "SIZE", "MODIFIED")))
+	headerRowStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))
+	pathWidth := min(fileListWidth-10, 50) // Adjust based on available space
+	fileListContent.WriteString(headerRowStyle.Render(fmt.Sprintf("%-*s %-10s %-15s\n", pathWidth, "FILE LIST", "SIZE", "MODIFIED")))
 
 	// File list
-	maxVisible := m.height - 10
+	maxVisible := m.height - 16 // Adjusted for borders
 	if maxVisible < 1 {
 		maxVisible = 1
 	}
@@ -496,7 +523,7 @@ func (m model) viewSelect() string {
 		file := m.filteredFiles[i]
 		cursor := " "
 		if m.cursor == i {
-			cursor = ">"
+			cursor = "▶" // More visible arrow
 		}
 
 		marker := " "
@@ -509,7 +536,7 @@ func (m model) viewSelect() string {
 
 		style := lipgloss.NewStyle()
 		if m.cursor == i {
-			style = style.Background(lipgloss.Color("240"))
+			style = style.Background(lipgloss.Color("240")).Bold(true)
 		}
 		if m.selected[i] {
 			style = style.Foreground(lipgloss.Color("11"))
@@ -528,13 +555,22 @@ func (m model) viewSelect() string {
 			file.Modified.Format("2006-01-02 15:04"),
 		)
 
-		b.WriteString(style.Render(line) + "\n")
+		fileListContent.WriteString(style.Render(line) + "\n")
 	}
 
 	// Footer
 	footerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	b.WriteString("\n" + footerStyle.Render(fmt.Sprintf("Showing %d of %d files | Targets: %d",
+	fileListContent.WriteString(footerStyle.Render(fmt.Sprintf("\nShowing %d of %d files | Targets: %d",
 		len(m.filteredFiles), len(m.files), len(m.selected))))
+
+	// Wrap file list in border
+	listBox := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(listBorderColor).
+		Padding(1, 2).
+		Width(fileListWidth - 4)
+
+	b.WriteString(listBox.Render(fileListContent.String()))
 
 	// If preview is enabled, combine file list and preview side by side
 	if m.showPreview && previewContent != "" {
