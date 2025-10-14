@@ -144,6 +144,75 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Handle input field updates FIRST when focused (before command keys)
+	// This prevents keys like 's', 'k', 'j', etc. from being intercepted
+	if m.focus == focusPath || m.focus == focusSearch {
+		var cmd tea.Cmd
+		switch msg.String() {
+		case "ctrl+c", "q":
+			return m, tea.Quit
+		case "?":
+			m.showHelp = !m.showHelp
+			return m, nil
+		case "tab":
+			// Handle tab to switch focus
+			switch m.focus {
+			case focusPath:
+				m.focus = focusSearch
+				m.pathInput.Blur()
+				m.searchInput.Focus()
+			case focusSearch:
+				m.focus = focusList
+				m.searchInput.Blur()
+			}
+			return m, nil
+		case "shift+tab":
+			// Handle shift+tab to switch focus backwards
+			switch m.focus {
+			case focusPath:
+				m.focus = focusList
+				m.pathInput.Blur()
+			case focusSearch:
+				m.focus = focusPath
+				m.searchInput.Blur()
+				m.pathInput.Focus()
+			}
+			return m, nil
+		case "ctrl+r":
+			// Reload files
+			newPath := m.pathInput.Value()
+			absPath, err := filepath.Abs(newPath)
+			if err != nil {
+				m.err = fmt.Errorf("invalid path: %w", err)
+				return m, nil
+			}
+			if err := os.Chdir(absPath); err != nil {
+				m.err = fmt.Errorf("cannot change to directory: %w", err)
+				return m, nil
+			}
+			m.workDir = absPath
+			m.err = nil
+			return m, func() tea.Msg {
+				files, err := scanFiles(m.workDir, m.searchInput.Value())
+				return scanCompleteMsg{files: files, err: err}
+			}
+		default:
+			// Let the input handle all other keys (including typing)
+			if m.focus == focusSearch {
+				m.searchInput, cmd = m.searchInput.Update(msg)
+				m.filterFiles()
+				return m, tea.Batch(cmd, func() tea.Msg {
+					files, err := scanFiles(m.workDir, m.searchInput.Value())
+					return scanCompleteMsg{files: files, err: err}
+				})
+			} else if m.focus == focusPath {
+				m.pathInput, cmd = m.pathInput.Update(msg)
+				return m, cmd
+			}
+		}
+	}
+
+	// Handle file list and other commands when NOT in input mode
 	switch msg.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
@@ -283,24 +352,6 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Proceed to confirmation if we have source and targets
 		if m.sourceFile != nil && len(m.selected) > 0 {
 			m.mode = modeConfirm
-		}
-
-	default:
-		// Update the focused input
-		var cmd tea.Cmd
-		if m.focus == focusSearch {
-			m.searchInput, cmd = m.searchInput.Update(msg)
-
-			// Re-filter on search query change
-			m.filterFiles()
-			// Trigger rescan if query changed
-			return m, tea.Batch(cmd, func() tea.Msg {
-				files, err := scanFiles(m.workDir, m.searchInput.Value())
-				return scanCompleteMsg{files: files, err: err}
-			})
-		} else {
-			m.pathInput, cmd = m.pathInput.Update(msg)
-			return m, cmd
 		}
 	}
 
