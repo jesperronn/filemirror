@@ -432,7 +432,7 @@ func (m model) viewSelect() string {
 	b.WriteString(headerStyle.Render("MultiEdit - File Synchronization Tool") + "\n\n")
 
 	// Context-sensitive keyboard hints
-	instructStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	instructStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
 	var hints string
 
 	switch m.focus {
