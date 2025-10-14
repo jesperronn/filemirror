@@ -47,9 +47,9 @@ type model struct {
 	mode          mode
 	viewport      int // for scrolling
 	focus         inputFocus
-	workDir       string // current working directory
-	showPreview   bool   // whether to show file preview panel
-	previewScroll int    // scroll position in preview
+	workDir       string      // current working directory
+	showPreview   bool        // whether to show file preview panel
+	previewScroll int         // scroll position in preview
 	previewMode   previewMode // plain or diff mode
 }
 
@@ -97,7 +97,7 @@ func initialModel(initialQuery string, initialPath string) model {
 		viewport:      0,
 		focus:         focusPath,
 		workDir:       workDir,
-		showPreview:   true,           // Show preview by default
+		showPreview:   true, // Show preview by default
 		previewScroll: 0,
 		previewMode:   previewPlain, // Start with plain view
 	}
@@ -570,14 +570,17 @@ func (m model) viewSelect() string {
 		Padding(0, 1).
 		Width(fileListWidth - 4)
 
-	b.WriteString(listBox.Render(fileListContent.String()))
+	renderedFileList := listBox.Render(fileListContent.String())
 
 	// If preview is enabled, combine file list and preview side by side
-	if m.showPreview && previewContent != "" {
-		fileList := b.String()
-		return lipgloss.JoinHorizontal(lipgloss.Top, fileList, previewContent)
+	var bottomSection string
+	if m.showPreview {
+		bottomSection = lipgloss.JoinHorizontal(lipgloss.Top, renderedFileList, previewContent)
+	} else {
+		bottomSection = renderedFileList
 	}
 
+	b.WriteString(bottomSection)
 	return b.String()
 }
 
