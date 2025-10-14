@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -16,18 +18,28 @@ const (
 	modeConfirm
 )
 
+type inputFocus int
+
+const (
+	focusSearch inputFocus = iota
+	focusPath
+)
+
 type model struct {
 	files         []FileInfo
 	filteredFiles []FileInfo
 	cursor        int
 	selected      map[int]bool // target files
 	sourceFile    *FileInfo
-	textInput     textinput.Model
+	searchInput   textinput.Model
+	pathInput     textinput.Model
 	err           error
 	width         int
 	height        int
 	mode          mode
 	viewport      int // for scrolling
+	focus         inputFocus
+	workDir       string // current working directory
 }
 
 type scanCompleteMsg struct {
@@ -35,24 +47,45 @@ type scanCompleteMsg struct {
 	err   error
 }
 
-func initialModel(initialQuery string) model {
-	ti := textinput.New()
-	ti.Placeholder = "Search files..."
-	ti.Focus()
-	ti.CharLimit = 156
-	ti.Width = 50
-	ti.SetValue(initialQuery)
+func initialModel(initialQuery string, initialPath string) model {
+	// Search input
+	searchInput := textinput.New()
+	searchInput.Placeholder = "Search pattern (e.g., *.go, config.json)..."
+	searchInput.Focus()
+	searchInput.CharLimit = 156
+	searchInput.Width = 50
+	searchInput.SetValue(initialQuery)
+
+	// Path input
+	pathInput := textinput.New()
+	pathInput.Placeholder = "Working directory..."
+	pathInput.CharLimit = 256
+	pathInput.Width = 50
+
+	// Get current working directory or use provided path
+	workDir := initialPath
+	if workDir == "" {
+		var err error
+		workDir, err = os.Getwd()
+		if err != nil {
+			workDir = "."
+		}
+	}
+	pathInput.SetValue(workDir)
 
 	m := model{
 		files:         []FileInfo{},
 		filteredFiles: []FileInfo{},
 		cursor:        0,
 		selected:      make(map[int]bool),
-		textInput:     ti,
+		searchInput:   searchInput,
+		pathInput:     pathInput,
 		width:         80,
 		height:        24,
 		mode:          modeSelect,
 		viewport:      0,
+		focus:         focusSearch,
+		workDir:       workDir,
 	}
 
 	return m
@@ -62,7 +95,7 @@ func (m model) Init() tea.Cmd {
 	return tea.Batch(
 		textinput.Blink,
 		func() tea.Msg {
-			files, err := scanFiles(m.textInput.Value())
+			files, err := scanFiles(m.workDir, m.searchInput.Value())
 			return scanCompleteMsg{files: files, err: err}
 		},
 	)
@@ -95,7 +128,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	m.textInput, cmd = m.textInput.Update(msg)
+	// Update the focused input
+	if m.focus == focusSearch {
+		m.searchInput, cmd = m.searchInput.Update(msg)
+	} else {
+		m.pathInput, cmd = m.pathInput.Update(msg)
+	}
 	return m, cmd
 }
 
@@ -104,16 +142,56 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+c", "q":
 		return m, tea.Quit
 
+	case "tab":
+		// Toggle focus between search and path inputs
+		if m.focus == focusSearch {
+			m.focus = focusPath
+			m.searchInput.Blur()
+			m.pathInput.Focus()
+		} else {
+			m.focus = focusSearch
+			m.pathInput.Blur()
+			m.searchInput.Focus()
+		}
+		return m, nil
+
+	case "ctrl+r":
+		// Reload: change to the path and rescan files
+		newPath := m.pathInput.Value()
+		absPath, err := filepath.Abs(newPath)
+		if err != nil {
+			m.err = fmt.Errorf("invalid path: %w", err)
+			return m, nil
+		}
+
+		if err := os.Chdir(absPath); err != nil {
+			m.err = fmt.Errorf("cannot change to directory: %w", err)
+			return m, nil
+		}
+
+		m.workDir = absPath
+		m.err = nil
+
+		// Rescan files in new directory
+		return m, func() tea.Msg {
+			files, err := scanFiles(m.workDir, m.searchInput.Value())
+			return scanCompleteMsg{files: files, err: err}
+		}
+
 	case "up", "k":
-		if m.cursor > 0 {
-			m.cursor--
-			m.adjustViewport()
+		if m.focus == focusSearch {
+			if m.cursor > 0 {
+				m.cursor--
+				m.adjustViewport()
+			}
 		}
 
 	case "down", "j":
-		if m.cursor < len(m.filteredFiles)-1 {
-			m.cursor++
-			m.adjustViewport()
+		if m.focus == focusSearch {
+			if m.cursor < len(m.filteredFiles)-1 {
+				m.cursor++
+				m.adjustViewport()
+			}
 		}
 
 	case "ctrl+s":
@@ -136,21 +214,22 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	default:
-		// Update search query
+		// Update the focused input
 		var cmd tea.Cmd
-		m.textInput, cmd = m.textInput.Update(msg)
+		if m.focus == focusSearch {
+			m.searchInput, cmd = m.searchInput.Update(msg)
 
-		// Re-filter and rescan on query change
-		oldQuery := m.textInput.Value()
-		if msg.String() != "ctrl+c" {
+			// Re-filter on search query change
 			m.filterFiles()
 			// Trigger rescan if query changed
 			return m, tea.Batch(cmd, func() tea.Msg {
-				files, err := scanFiles(oldQuery)
+				files, err := scanFiles(m.workDir, m.searchInput.Value())
 				return scanCompleteMsg{files: files, err: err}
 			})
+		} else {
+			m.pathInput, cmd = m.pathInput.Update(msg)
+			return m, cmd
 		}
-		return m, cmd
 	}
 
 	return m, nil
@@ -180,7 +259,7 @@ func (m *model) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) filterFiles() {
-	query := strings.ToLower(m.textInput.Value())
+	query := strings.ToLower(m.searchInput.Value())
 	if query == "" {
 		m.filteredFiles = m.files
 		return
@@ -237,10 +316,21 @@ func (m model) viewSelect() string {
 
 	// Instructions
 	instructStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	b.WriteString(instructStyle.Render("CTRL-S: mark source | CTRL-E: toggle target | ENTER: sync | q: quit") + "\n\n")
+	b.WriteString(instructStyle.Render("TAB: switch input | CTRL-R: reload | CTRL-S: mark source | CTRL-E: toggle target | ENTER: sync | q: quit") + "\n\n")
+
+	// Path input
+	pathLabel := "Path:   "
+	if m.focus == focusPath {
+		pathLabel = "> Path: "
+	}
+	b.WriteString(pathLabel + m.pathInput.View() + "\n")
 
 	// Search input
-	b.WriteString("Search: " + m.textInput.View() + "\n\n")
+	searchLabel := "Search: "
+	if m.focus == focusSearch {
+		searchLabel = "> Search: "
+	}
+	b.WriteString(searchLabel + m.searchInput.View() + "\n\n")
 
 	// Source file indicator
 	if m.sourceFile != nil {

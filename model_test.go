@@ -55,7 +55,7 @@ func TestTruncate(t *testing.T) {
 }
 
 func TestFilterFiles(t *testing.T) {
-	m := initialModel("")
+	m := initialModel("", ".")
 	m.files = []FileInfo{
 		{Path: "main.go"},
 		{Path: "model.go"},
@@ -65,7 +65,7 @@ func TestFilterFiles(t *testing.T) {
 	}
 
 	// Test filtering with no query
-	m.textInput.SetValue("")
+	m.searchInput.SetValue("")
 	m.filterFiles()
 	if len(m.filteredFiles) != len(m.files) {
 		t.Errorf("Expected %d files with empty query, got %d",
@@ -73,7 +73,7 @@ func TestFilterFiles(t *testing.T) {
 	}
 
 	// Test filtering with query
-	m.textInput.SetValue("go")
+	m.searchInput.SetValue("go")
 	m.filterFiles()
 	expectedCount := 3 // main.go, model.go, scanner.go
 	if len(m.filteredFiles) != expectedCount {
@@ -82,7 +82,7 @@ func TestFilterFiles(t *testing.T) {
 	}
 
 	// Test filtering with specific query
-	m.textInput.SetValue("main")
+	m.searchInput.SetValue("main")
 	m.filterFiles()
 	if len(m.filteredFiles) != 1 {
 		t.Errorf("Expected 1 file with 'main' query, got %d", len(m.filteredFiles))

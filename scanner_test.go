@@ -73,7 +73,7 @@ func TestScanFiles(t *testing.T) {
 	}
 
 	// Test scanning all files
-	files, err := scanFiles("")
+	files, err := scanFiles(tmpDir, "")
 	if err != nil {
 		t.Fatalf("scanFiles failed: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestScanFiles(t *testing.T) {
 	}
 
 	// Test scanning with pattern
-	files, err = scanFiles("*.go")
+	files, err = scanFiles(tmpDir, "*.go")
 	if err != nil {
 		t.Fatalf("scanFiles with pattern failed: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestScanFilesExcludesNodeModules(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	files, err := scanFiles("")
+	files, err := scanFiles(tmpDir, "")
 	if err != nil {
 		t.Fatalf("scanFiles failed: %v", err)
 	}

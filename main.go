@@ -55,8 +55,8 @@ func main() {
 		}
 	}
 
-	// Create the model
-	m := initialModel(initialQuery)
+	// Create the model with initial query and working directory
+	m := initialModel(initialQuery, workDir)
 
 	// Start the program
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -88,8 +88,10 @@ ARGUMENTS:
                        If omitted, shows all files in the current directory tree
 
 KEYBOARD SHORTCUTS:
-    Type           Search/filter files in real-time
-    ↑/↓ or k/j     Navigate through file list
+    TAB            Switch between Path and Search inputs
+    CTRL-R         Reload files from current path
+    Type           Edit focused input (Path or Search)
+    ↑/↓ or k/j     Navigate through file list (when Search is focused)
     CTRL-S         Mark current file as SOURCE
     CTRL-E         Toggle current file as TARGET (can mark multiple)
     Enter          Proceed to confirmation (requires source + targets)
@@ -98,14 +100,16 @@ KEYBOARD SHORTCUTS:
     q / CTRL-C     Quit the program
 
 WORKFLOW:
-    1. Run multiedit with optional search pattern
-    2. Browse and filter files using search
-    3. Mark one file as SOURCE with CTRL-S
-    4. Mark one or more files as TARGETS with CTRL-E
-    5. Press Enter to review selection
-    6. Confirm with 'y' to copy source content to all targets
+    1. Run multiedit with optional path and search pattern
+    2. Use TAB to switch between Path and Search inputs
+    3. Edit the path to navigate to different directories (press CTRL-R to reload)
+    4. Type in Search to filter files by pattern
+    5. Navigate with ↑/↓ or k/j, mark source (CTRL-S) and targets (CTRL-E)
+    6. Press Enter to review, then 'y' to confirm and sync
 
 FEATURES:
+    - Interactive path editing - change directories without leaving the app
+    - Real-time file filtering with pattern matching
     - Searches up to 4 directory levels deep
     - Excludes common directories (node_modules, .git, vendor, etc.)
     - Shows file metadata (size, modified time, git branch)
@@ -113,11 +117,16 @@ FEATURES:
     - Pattern matching with wildcards (*.go, *.json, etc.)
 
 EXAMPLES:
-    multiedit                           # Search all files in current directory
-    multiedit "*.go"                    # Search for Go files
-    multiedit --path ~/projects "*.go"  # Search in specific directory
-    multiedit -p /tmp config.json       # Search config.json in /tmp
-    multiedit --path ../backend         # Search all files in ../backend
+    multiedit                           # Start in current directory
+    multiedit "*.go"                    # Start with Go files filter
+    multiedit --path ~/projects "*.go"  # Start in specific directory
+    multiedit -p /tmp config.json       # Start in /tmp, filter config.json
+
+    Once running:
+    - Press TAB to edit the path field
+    - Type a new path and press CTRL-R to navigate there
+    - Press TAB again to go back to search
+    - Edit search pattern to filter files
 
 REPOSITORY:
     https://github.com/jesper/multiedit

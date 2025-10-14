@@ -28,22 +28,36 @@ var excludeDirs = map[string]bool{
 	".cache":       true,
 }
 
-func scanFiles(pattern string) ([]FileInfo, error) {
+func scanFiles(workDir string, pattern string) ([]FileInfo, error) {
 	var files []FileInfo
 	maxDepth := 4
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get current directory: %w", err)
+	// Use workDir as the base directory
+	if workDir == "" {
+		var err error
+		workDir, err = os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current directory: %w", err)
+		}
 	}
 
-	err = filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {
+	// Make sure workDir is absolute
+	absWorkDir, err := filepath.Abs(workDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	err = filepath.WalkDir(absWorkDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil // Skip files/dirs we can't access
 		}
 
-		// Calculate depth
-		depth := strings.Count(path, string(os.PathSeparator))
+		// Calculate relative depth from the work directory
+		relPath, err := filepath.Rel(absWorkDir, path)
+		if err != nil {
+			return nil
+		}
+		depth := strings.Count(relPath, string(os.PathSeparator))
 		if depth > maxDepth {
 			return fs.SkipDir
 		}
@@ -73,10 +87,11 @@ func scanFiles(pattern string) ([]FileInfo, error) {
 		}
 
 		// Get git branch for this file
-		branch := getGitBranch(filepath.Join(cwd, path))
+		branch := getGitBranch(path)
 
+		// Store relative path from work directory
 		files = append(files, FileInfo{
-			Path:     path,
+			Path:     relPath,
 			Size:     info.Size(),
 			Modified: info.ModTime(),
 			Branch:   branch,

@@ -37,7 +37,9 @@ go build -o multiedit .
 
 ## Features
 
-- **Interactive File Search**: Real-time filtering with pattern matching (wildcards supported)
+- **Interactive Path Navigation**: Change directories without leaving the app using TAB and CTRL-R
+- **Dual Input Fields**: Separate, editable Path and Search inputs for maximum flexibility
+- **Real-Time File Search**: Filter files with pattern matching (wildcards supported)
 - **Multi-File Sync**: Copy content from one source file to multiple targets at once
 - **File Metadata Display**: Shows path, size, modification time, and git branch
 - **Safe Operations**: Atomic file copying that preserves permissions
@@ -72,8 +74,10 @@ multiedit [OPTIONS] [PATTERN]
 
 | Key | Action |
 |-----|--------|
-| Type | Search/filter files in real-time |
-| `↑`/`↓` or `k`/`j` | Navigate through file list |
+| `TAB` | Switch between Path and Search input fields |
+| `CTRL-R` | Reload files from the current path |
+| Type | Edit the focused input (Path or Search) |
+| `↑`/`↓` or `k`/`j` | Navigate through file list (when Search is focused) |
 | `CTRL-S` | Mark current file as SOURCE |
 | `CTRL-E` | Toggle current file as TARGET (can mark multiple) |
 | `Enter` | Proceed to confirmation (requires source + targets) |
@@ -96,17 +100,26 @@ Files are sorted by modification time (newest first).
 Here's a typical workflow for synchronizing configuration files across multiple directories:
 
 ```bash
-# 1. Start multiedit searching for config files
-./multiedit "config.json"
+# 1. Start multiedit (optionally in a specific directory)
+./multiedit --path ~/projects "config.json"
 
-# 2. In the interactive UI:
-#    - Browse through the list of config.json files
+# 2. In the interactive UI, you'll see two input fields:
+#    Path:   /Users/you/projects        (editable)
+#    Search: config.json                 (editable)
+
+# 3. Navigate and edit:
+#    - Press TAB to switch between Path and Search inputs
+#    - Edit the Path field to navigate to different directories
+#    - Press CTRL-R to reload files from the new path
+#    - Edit the Search field to filter files by pattern
+#    - Use ↑/↓ or k/j to navigate through the file list
+
+# 4. Mark files:
 #    - Press CTRL-S on the "correct" config file to mark it as source
-#    - Navigate to other config files you want to update
-#    - Press CTRL-E on each one to mark them as targets
+#    - Press CTRL-E on target files you want to update
 #    - Press Enter to review your selection
 
-# 3. Confirm the sync operation:
+# 5. Confirm the sync:
 #    - Review source and target files
 #    - Press 'y' to confirm and sync
 #    - All target files now have the same content as the source!
@@ -114,11 +127,13 @@ Here's a typical workflow for synchronizing configuration files across multiple 
 
 ## Use Cases
 
-- **Sync configuration files** across multiple microservices
+- **Sync configuration files** across multiple microservices or directories
+- **Navigate project structures** and find files across different paths
 - **Update component files** in different feature branches
 - **Propagate utility functions** across multiple packages
 - **Copy templates** to multiple locations in a monorepo
 - **Standardize linting configs** across projects
+- **Browse and sync files** without leaving your terminal
 
 ## Examples
 
@@ -155,6 +170,17 @@ Here's a typical workflow for synchronizing configuration files across multiple 
 ### Search all files (no filter)
 ```bash
 ./multiedit
+```
+
+### Interactive navigation (once running)
+```
+1. Start: ./multiedit
+2. Press TAB to focus the Path input
+3. Type a new path (e.g., ~/projects/backend)
+4. Press CTRL-R to navigate there
+5. Press TAB to focus Search
+6. Type a pattern (e.g., *.ts)
+7. Navigate and sync files as needed
 ```
 
 ## How It Works
