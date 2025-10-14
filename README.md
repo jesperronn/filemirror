@@ -214,13 +214,31 @@ Here's a typical workflow for synchronizing configuration files across multiple 
 - Go 1.21 or later
 - Git (optional, for branch detection)
 
-### Build
+### Development Scripts
+
+The project includes several utility scripts in the `bin/` directory:
+
+#### bin/setup - Development Environment Setup
+
+```bash
+# Basic setup
+bin/setup
+
+# Full setup with optional tools
+bin/setup --full
+```
+
+This script:
+- Checks for required tools (Go, Git)
+- Installs Go dependencies
+- Verifies dependencies
+- Optionally installs development tools (golangci-lint)
+- Runs initial tests and build
+
+#### bin/build - Build Binary
 
 ```bash
 # Simple build
-go build -o multiedit .
-
-# Or use the build script (recommended)
 bin/build
 
 # Build with options
@@ -241,10 +259,54 @@ The build script includes:
 - Binary verification
 - Cross-compilation support
 
-### Test
+#### bin/test - Run Tests
 
 ```bash
+# Run all tests
+bin/test
+
+# Run with options
+bin/test --verbose         # Verbose output
+bin/test --coverage        # Generate coverage report
+bin/test --race            # Run with race detector
+bin/test --bench           # Run benchmarks
+```
+
+#### bin/lint - Linting and Code Quality
+
+```bash
+# Run all linters
+bin/lint
+
+# Auto-fix issues
+bin/lint --fix
+
+# Verbose output
+bin/lint --verbose
+```
+
+This script runs:
+- `gofmt` for formatting checks
+- `go vet` for static analysis
+- `golangci-lint` (if installed)
+- Checks for TODO/FIXME comments
+
+### Manual Commands
+
+You can also use standard Go commands directly:
+
+```bash
+# Build
+go build -o multiedit .
+
+# Test
 go test -v ./...
+
+# Format
+gofmt -w .
+
+# Vet
+go vet ./...
 ```
 
 ## Contributing
