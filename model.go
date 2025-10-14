@@ -508,7 +508,7 @@ func (m model) viewSelect() string {
 	// File list header
 	headerRowStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))
 	pathWidth := min(fileListWidth-10, 50) // Adjust based on available space
-	fileListContent.WriteString(headerRowStyle.Render(fmt.Sprintf("%-*s %-10s %-15s\n", pathWidth, "FILE LIST", "SIZE", "MODIFIED")))
+	fileListContent.WriteString(headerRowStyle.Render(fmt.Sprintf("%-*s %-10s %-15s", pathWidth, "FILE LIST", "SIZE", "MODIFIED")) + "\n")
 
 	// File list
 	maxVisible := m.height - 16 // Adjusted for borders
@@ -567,7 +567,7 @@ func (m model) viewSelect() string {
 	listBox := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(listBorderColor).
-		Padding(1, 2).
+		Padding(0, 1).
 		Width(fileListWidth - 4)
 
 	b.WriteString(listBox.Render(fileListContent.String()))
