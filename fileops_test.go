@@ -43,19 +43,21 @@ func TestCopyFile(t *testing.T) {
 		t.Errorf("Content mismatch: got %q, want %q", string(dstContent), srcContent)
 	}
 
-	// Verify file permissions were preserved
-	srcInfo, err := os.Stat(srcPath)
-	if err != nil {
-		t.Fatalf("Failed to stat source file: %v", err)
-	}
+	// Verify file permissions were preserved (skip on Windows as permissions work differently)
+	if runtime.GOOS != "windows" {
+		srcInfo, err := os.Stat(srcPath)
+		if err != nil {
+			t.Fatalf("Failed to stat source file: %v", err)
+		}
 
-	dstInfo, err := os.Stat(dstPath)
-	if err != nil {
-		t.Fatalf("Failed to stat destination file: %v", err)
-	}
+		dstInfo, err := os.Stat(dstPath)
+		if err != nil {
+			t.Fatalf("Failed to stat destination file: %v", err)
+		}
 
-	if srcInfo.Mode() != dstInfo.Mode() {
-		t.Errorf("Permissions mismatch: got %v, want %v", dstInfo.Mode(), srcInfo.Mode())
+		if srcInfo.Mode() != dstInfo.Mode() {
+			t.Errorf("Permissions mismatch: got %v, want %v", dstInfo.Mode(), srcInfo.Mode())
+		}
 	}
 }
 
