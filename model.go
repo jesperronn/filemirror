@@ -30,7 +30,8 @@ const (
 type confirmFocus int
 
 const (
-	focusConfirmButtons confirmFocus = iota
+	focusCopyButton confirmFocus = iota
+	focusCancelButton
 	focusGitEnabled
 	focusBranchName
 	focusCommitMsg
@@ -493,9 +494,14 @@ func (m *model) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "tab":
 		// Cycle focus forward
 		switch m.confirmFocus {
-		case focusConfirmButtons:
+		case focusCopyButton:
+			m.confirmFocus = focusCancelButton
+		case focusCancelButton:
 			if m.gitEnabled {
 				m.confirmFocus = focusGitEnabled
+			} else {
+				// When git disabled, cycle back to copy button
+				m.confirmFocus = focusCopyButton
 			}
 		case focusGitEnabled:
 			m.confirmFocus = focusBranchName
@@ -508,17 +514,19 @@ func (m *model) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.confirmFocus = focusPushToggle
 			m.commitMsgInput.Blur()
 		case focusPushToggle:
-			m.confirmFocus = focusConfirmButtons
+			m.confirmFocus = focusCopyButton
 		}
 		return m, nil
 
 	case "shift+tab":
 		// Cycle focus backward
 		switch m.confirmFocus {
-		case focusConfirmButtons:
+		case focusCopyButton:
 			m.confirmFocus = focusPushToggle
+		case focusCancelButton:
+			m.confirmFocus = focusCopyButton
 		case focusGitEnabled:
-			m.confirmFocus = focusConfirmButtons
+			m.confirmFocus = focusCancelButton
 		case focusBranchName:
 			m.confirmFocus = focusGitEnabled
 			m.branchNameInput.Blur()
@@ -543,8 +551,8 @@ func (m *model) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "enter":
-		// Execute on buttons or git enabled
-		if m.confirmFocus == focusConfirmButtons || m.confirmFocus == focusGitEnabled {
+		// Execute on copy button or cancel button
+		if m.confirmFocus == focusCopyButton {
 			// Perform the copy operation
 			err := m.copySourceToTargets()
 			if err != nil {
@@ -574,6 +582,10 @@ func (m *model) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 
 			return m, tea.Quit
+		} else if m.confirmFocus == focusCancelButton {
+			// Cancel and go back to selection
+			m.mode = modeSelect
+			return m, nil
 		}
 		return m, nil
 	}
@@ -1157,8 +1169,11 @@ func (m model) viewConfirm() string {
 		Border(lipgloss.RoundedBorder()).
 		Padding(0, 2)
 
-	if m.confirmFocus == focusConfirmButtons {
+	if m.confirmFocus == focusCopyButton {
 		copyButtonStyle = copyButtonStyle.Background(lipgloss.Color("240")).Bold(true)
+	}
+	if m.confirmFocus == focusCancelButton {
+		cancelButtonStyle = cancelButtonStyle.Background(lipgloss.Color("240")).Bold(true)
 	}
 
 	copyButton := copyButtonStyle.Render("Copy & Commit")
@@ -1257,7 +1272,7 @@ func (m *model) initGitWorkflow() {
 	// Enable git by default if we have git repos
 	m.gitEnabled = len(m.gitRepos) > 0
 	m.shouldPush = false // Safer default
-	m.confirmFocus = focusConfirmButtons
+	m.confirmFocus = focusCopyButton // Start on copy button
 }
 
 func truncate(s string, maxLen int) string {
