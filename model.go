@@ -687,7 +687,9 @@ func (m model) renderPreview() string {
 
 	// Calculate preview dimensions
 	previewWidth := m.width / 2
-	previewHeight := m.height - 10
+	// Match file list height to prevent overflow when joined horizontally
+	// File list uses m.height - 16, so preview should use same or less
+	previewHeight := m.height - 16
 
 	var b strings.Builder
 
