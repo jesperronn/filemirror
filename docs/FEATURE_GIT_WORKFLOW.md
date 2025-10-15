@@ -9,33 +9,28 @@ Add a post-copy git workflow step that creates commits in **target project repos
 3. User confirms → files are copied
 4. App quits
 
-## New Flow (After Copy Success)
-Add a new mode: `modeGitWorkflow` between copy success and quit
+## New Flow (Merged Confirmation + Git Workflow)
+Extend `modeConfirm` to include git workflow configuration in a split-panel UI
 
 ```
-modeSelect → modeConfirm → [COPY] → modeGitWorkflow → quit
+modeSelect → modeConfirm (with git workflow fields) → [COPY & COMMIT] → quit
                                   ↓
-                            (if git workflow skipped/disabled)
+                            (git commit checkbox can be toggled off)
 ```
 
 ## Implementation Plan
 
-### 1. Add New Mode & State (model.go)
+### 1. Extend Confirmation Mode State (model.go)
 
-**New Constants:**
+**New Constants (no new mode needed):**
 ```go
+type confirmFocus int
 const (
-    modeSelect mode = iota
-    modeConfirm
-    modeGitWorkflow  // NEW
-)
-
-type gitFocus int
-const (
-    focusBranchName gitFocus = iota
-    focusCommitMsg
-    focusPushToggle
-    focusActionButtons
+    focusConfirmButtons confirmFocus = iota  // existing: Yes/No buttons
+    focusGitEnabled                          // NEW: toggle git commit on/off
+    focusBranchName                          // NEW: branch name input
+    focusCommitMsg                           // NEW: commit message textarea
+    focusPushToggle                          // NEW: push to origin toggle
 )
 ```
 
@@ -44,21 +39,39 @@ const (
 type model struct {
     // ... existing fields ...
 
-    // Git workflow fields
+    // Git workflow fields (integrated into modeConfirm)
+    gitEnabled       bool                // toggle to enable/disable git workflow
     branchNameInput  textinput.Model
     commitMsgInput   textarea.Model      // multi-line for commit message
     shouldPush       bool                // toggle for auto-push
-    gitFocus         gitFocus            // which input is focused
-    copiedFiles      []string            // track what was successfully copied
+    confirmFocus     confirmFocus        // which input/button is focused
     gitRepos         map[string][]string // repo path -> list of changed files
 }
 ```
 
 ### 2. Modify Confirmation Flow (model.go)
 
-**In `updateConfirm()` when user presses 'y':**
+**When transitioning to `modeConfirm`:**
 ```go
-case "y", "Y":
+case "enter":
+    if m.mode == modeSelect && m.hasValidSelection() {
+        m.mode = modeConfirm
+        m.initGitWorkflow()  // NEW: initialize git fields when entering confirm mode
+        return m, nil
+    }
+```
+
+**New function `initGitWorkflow()`:**
+- Detect git repos for each target file
+- Group files by repository root
+- Initialize default branch name: `chore/filesync-{source-filename-part}`
+- Initialize default commit message template
+- Set `gitEnabled = true` by default (user can toggle off)
+- Set focus to confirm buttons initially
+
+**In `updateConfirm()` when user confirms (ENTER on "Copy & Commit" button):**
+```go
+case "enter":
     // Perform the copy operation
     err := m.copySourceToTargets()
     if err != nil {
@@ -66,58 +79,59 @@ case "y", "Y":
         return m, nil
     }
 
-    // NEW: Instead of tea.Quit, transition to git workflow
-    m.mode = modeGitWorkflow
-    m.initGitWorkflow()  // new function
-    return m, nil
+    // NEW: If git is enabled, perform git operations
+    if m.gitEnabled {
+        err = m.performGitWorkflow()  // commit to all repos
+        if err != nil {
+            m.err = err
+            return m, nil
+        }
+    }
+
+    // Show success summary and quit
+    return m, tea.Quit
 ```
 
-**New function `initGitWorkflow()`:**
-- Detect git repos for each copied target file
-- Group files by repository root
-- Initialize default branch name: `chore/filesync-{source-filename-part}`
-- Initialize default commit message template
-- Set focus to branch name input
+### 3. Extend Confirmation View with Git Panel (model.go)
 
-### 3. Create Git Workflow Screen (model.go)
+**Modify `viewConfirm()` to use split-panel layout:**
 
-**New function: `viewGitWorkflow()`**
-
-Display layout:
+Display layout (see `docs/INTERFACE_EXAMPLES.md` for full visual):
 ```
-╭─────────────────────────────────────────────────╮
-│ Git Workflow (Optional)                         │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│ Branch Name:                                    │
-│ ╭─────────────────────────────────────────────╮ │
-│ │ chore/filesync-<filename-part>              │ │
-│ ╰─────────────────────────────────────────────╯ │
-│                                                 │
-│ Commit Message:                                 │
-│ ╭─────────────────────────────────────────────╮ │
-│ │ Sync: Update model.go from source           │ │
-│ │                                             │ │
-│ │ Synchronized from ../source/model.go        │ │
-│ │ - path/to/target1/model.go                  │ │
-│ │ - path/to/target2/model.go                  │ │
-│ ╰─────────────────────────────────────────────╯ │
-│                                                 │
-│ [ ] Push to origin after commit                │
-│                                                 │
-│ Target Repositories:                            │
-│ ✓ /path/to/project1 (1 file)                   │
-│ ✓ /path/to/project2 (2 files)                  │
-│ ✗ /path/to/project3 (not a git repo)           │
-│                                                 │
-│ [Commit & Continue] [Skip]                      │
-╰─────────────────────────────────────────────────╯
+╭─────────────────────────╮│ Git Workflow Configuration ───────────────┐
+│ FILES TO SYNC          ││                                           │
+│                        ││ [✓] Create git commit                     │
+│ Source:                ││                                           │
+│ ▶ model.go             ││ Branch Name:                              │
+│   12.5 KB              ││ ╭───────────────────────────────────────╮ │
+│                        ││ │ chore/filesync-model                  │ │
+│ Targets (2):           ││ ╰───────────────────────────────────────╯ │
+│ → scanner.go           ││                                           │
+│   3.2 KB               ││ Commit Message:                           │
+│ → git.go               ││ ╭───────────────────────────────────────╮ │
+│   2.1 KB               ││ │ Chore: Update model.go                │ │
+│                        ││ │                                       │ │
+│                        ││ │ Synchronized from model.go            │ │
+│                        ││ │ Targets: scanner.go, git.go           │ │
+│                        ││ ╰───────────────────────────────────────╯ │
+│                        ││                                           │
+│                        ││ [ ] Push to origin after commit          │
+│                        ││                                           │
+│                        ││ Repository: /Users/jesper/src/filemirror │
+│                        ││                                           │
+│                        ││        ┌──────────────┐  ┌──────────┐    │
+│                        ││        │ Copy & Commit│  │  Cancel  │    │
+╰─────────────────────────╯│        └──────────────┘  └──────────┘    │
+                           └───────────────────────────────────────────┘
 
-where <filename-part> is derived from source filename (e.g. model.go => sync/filesync-model)
+TAB: next field • ENTER: confirm • ESC: cancel • CTRL-G: toggle git
 ```
 
-TAB: next field • ENTER: commit • ESC: skip • q: quit
-```
+**Key UI elements:**
+- Left panel: Read-only file list (source + targets)
+- Right panel: Git configuration fields
+- Git enabled checkbox at top of right panel
+- When git checkbox is OFF, gray out branch/commit/push fields
 
 ### 4. Git Operations Module (new file: gitworkflow.go)
 
@@ -223,25 +237,30 @@ Since targets may be in different repos:
 
 ### 7. Keyboard Shortcuts
 
-**In `modeGitWorkflow`:**
-- **TAB** - Cycle focus: branch input → commit input → push toggle → action buttons
+**In `modeConfirm` (merged with git workflow):**
+- **TAB** - Cycle focus: buttons → git enabled checkbox → branch input → commit input → push toggle → back to buttons
 - **Shift+TAB** - Reverse cycle
-- **ENTER** - Execute git workflow (commit, optionally push) -- IMPORTANT: No ENTER in textarea
-- **ESC** - Skip git workflow entirely, quit app
-- **CTRL-C** / **q** - Quit immediately without git operations
+- **CTRL-G** - Quick toggle for git enabled checkbox (from any focus)
+- **ENTER** - Execute copy and git workflow (if git enabled)
+- **ESC** - Cancel and return to file selection
+- **CTRL-C** / **q** - Quit immediately without operations
 - **Arrow keys** - Navigate in textarea when focused
+- **SPACE** - Toggle checkboxes (git enabled, push toggle) when focused
 
 ### 8. Execution Flow
 
-**When user presses ENTER in `modeGitWorkflow`:**
+**When user presses ENTER in `modeConfirm` (on "Copy & Commit" button):**
 
-For each repository with changed files:
-- Create worktree in temp location (e.g., `/tmp/fmr-worktree-{random-id}`)
-- Create new branch with specified name
-- Copy changed files to worktree
-- Stage and commit changes with user's commit message
-- Optionally push to origin if toggle enabled
-- Cleanup worktree (always happens via defer)
+1. **Copy phase**: Copy source file to all target files
+2. **Git phase** (only if `gitEnabled == true):
+   - For each repository with changed files:
+     - Create worktree in temp location (e.g., `/tmp/fmr-worktree-{random-id}`)
+     - Create new branch with specified name
+     - Copy changed files to worktree
+     - Stage and commit changes with user's commit message
+     - Optionally push to origin if `shouldPush == true`
+     - Cleanup worktree (always happens via defer)
+3. **Summary phase**: Display results and exit
 
 ### 9. Error Handling
 
@@ -290,11 +309,11 @@ For each repository with changed files:
 
 ### Modified Files:
 1. **`model.go`**
-   - Add `modeGitWorkflow` constant
-   - Add git workflow fields to model struct
-   - Add `viewGitWorkflow()` function
-   - Add `updateGitWorkflow()` function
-   - Modify `updateConfirm()` to transition to git workflow
+   - Add `confirmFocus` type with git-related focus states
+   - Add git workflow fields to model struct (`gitEnabled`, `branchNameInput`, etc.)
+   - Modify `viewConfirm()` to show split-panel layout with git fields
+   - Modify `updateConfirm()` to handle git field navigation and execution
+   - Add `initGitWorkflow()` to initialize git fields when entering confirm mode
 
 2. **`git.go`**
    - Extend with helper functions if needed
@@ -304,42 +323,48 @@ For each repository with changed files:
 
 ## Design Decisions to Confirm
 
-### 1. Scope: Same branch/message for all repos?
+### 1. UI Architecture: Separate mode vs merged confirmation?
+**Decision:** MERGED - Git workflow integrated into `modeConfirm` with split-panel UI
+- **Rationale:** Single decision point, faster workflow, better context
+- **Implementation:** Left panel shows files, right panel shows git configuration
+- **Toggle:** `gitEnabled` checkbox allows skipping git operations
+
+### 2. Scope: Same branch/message for all repos?
 **Proposed:** YES - Same branch name and commit message for all target repos
 - **Rationale:** Simpler UX, common use case
 - **Future:** Could add "Advanced Mode" for per-repo customization
 
-### 2. Worktree location?
+### 3. Worktree location?
 **Proposed:** Temp directory (`/tmp/fmr-worktree-{random-id}`)
 - **Rationale:** Clean, doesn't pollute user's workspace
 - **Cleanup:** Auto-cleanup on success/failure with defer
 
-### 3. Auto-cleanup worktrees?
+### 4. Auto-cleanup worktrees?
 **Proposed:** YES - Always cleanup after commit/push
 - **Rationale:** Worktrees are implementation detail, user shouldn't see them
 - **Exception:** On error, cleanup but log location for debugging
 
-### 4. GPG signing?
+### 5. GPG signing?
 **Proposed:** Respect user's git config
 - **Rationale:** Git will auto-sign if configured in target repos
 - **No special handling needed**
 
-### 5. Multiple file commits?
+### 6. Multiple file commits?
 **Proposed:** Single commit per repo with all changed files
 - **Rationale:** Cleaner history, files are related (synced together)
 - **Commit message lists all target files**
 **Desiscion:** This program only handles sync of single source file to multiple targets. Therefore it is safe to have one single commit per repo and it will always contain only one file.
 
-### 6. Branch naming convention?
+### 7. Branch naming convention?
 **Proposed:** use `chore/*` category 
 
-### 7. Optional vs Required?
-**Proposed:** Git workflow is OPTIONAL (can skip)
-- ESC key skips workflow and quits
-- Useful when user wants to commit manually later
-- Or when targets aren't in git repos
+### 8. Optional vs Required?
+**Decision:** Git workflow is OPTIONAL via checkbox toggle
+- `gitEnabled` checkbox (default: ON) can be toggled off
+- When disabled, only file copy is performed
+- Faster than separate mode approach (no need to transition screens)
 
-### 8. Show success message?
+### 9. Show success message?
 **Proposed:** YES - Show summary before quit
 ```
 Git Workflow Complete!
@@ -358,12 +383,13 @@ The summary must stay in the terminal after exit for user reference.
 ## Implementation Phases
 
 ### Phase 1: Basic Structure
-- [ ] Add `modeGitWorkflow` mode
-- [ ] Add git workflow fields to model
-- [ ] Create basic `viewGitWorkflow()` UI
+- [ ] Add `confirmFocus` type with git-related states
+- [ ] Add git workflow fields to model (`gitEnabled`, `branchNameInput`, etc.)
+- [ ] Modify `viewConfirm()` to show split-panel layout
+- [ ] Add git enabled checkbox
 - [ ] Add branch name input
 - [ ] Add commit message textarea
-- [ ] Add skip/continue options
+- [ ] Add push toggle checkbox
 
 ### Phase 2: Git Operations
 - [ ] Create `gitworkflow.go`
@@ -385,7 +411,8 @@ The summary must stay in the terminal after exit for user reference.
 - [ ] Improve error messages
 - [ ] Add branch name validation
 - [ ] Add commit message templates
-- [ ] Update help screen with new workflow
+- [ ] Update help screen with new keyboard shortcuts
+- [ ] Add CTRL-G quick toggle for git enabled
 
 ### Phase 5: Documentation
 - [ ] Update README with git workflow feature

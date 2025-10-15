@@ -93,58 +93,67 @@ This document shows visual examples of the current interface and the proposed gi
 - Colored diff output (green for additions, red for deletions)
 - Scrollable preview with position indicator
 
-## Proposed NEW Interface (modeGitWorkflow)
+## Proposed MERGED Interface (modeConfirm with Git Workflow)
 
-### Git Workflow Screen (After Confirmation)
+### Confirmation Screen with Integrated Git Workflow
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
-│ Git Workflow (Optional)                                                             │
-├─────────────────────────────────────────────────────────────────────────────────────┤
+│ FileMirror - Confirm Copy & Git Workflow                                           │
 │                                                                                     │
-│ Files successfully copied! Configure git commit settings below.                     │
+│ FILE LIST: Review • GIT WORKFLOW: TAB to navigate • ENTER: copy & commit •         │
+│ CTRL-G: toggle git • ESC: cancel • q: quit                                         │
 │                                                                                     │
-│ Branch Name:                                                                        │
 │ ╭─────────────────────────────────────────────────────────────────────────────────╮ │
-│ │ chore/filesync-model█                                                           │ │
+│ │ PATH: /Users/jesper/src/filemirror                                              │ │
+│ ╰─────────────────────────────────────────────────────────────────────────────────╯ │
+│ ╭─────────────────────────────────────────────────────────────────────────────────╮ │
+│ │ SEARCH: *.go                                                                    │ │
 │ ╰─────────────────────────────────────────────────────────────────────────────────╯ │
 │                                                                                     │
-│ Commit Message: (multi-line, use arrow keys to navigate)                           │
-│ ╭─────────────────────────────────────────────────────────────────────────────────╮ │
-│ │ Chore: Update model.go from source                                              │ │
-│ │                                                                                 │ │
-│ │ Synchronized from /Users/jesper/src/filemirror/model.go                        │ │
-│ │ Target files:                                                                   │ │
-│ │ - /Users/jesper/projects/app1/model.go                                          │ │
-│ │ - /Users/jesper/projects/app2/model.go                                          │ │
-│ │                                                                                 │ │
-│ ╰─────────────────────────────────────────────────────────────────────────────────╯ │
+│ Source: model.go                                                                    │
 │                                                                                     │
-│ [ ] Push to origin after commit                                                    │
-│                                                                                     │
-│ Target Repositories:                                                                │
-│ ✓ /Users/jesper/projects/app1 (1 file, branch: main)                               │
-│ ✓ /Users/jesper/projects/app2 (1 file, branch: main)                               │
-│ ✗ /tmp/not-a-repo/model.go (not in a git repository)                               │
-│                                                                                     │
-│                    ┌────────────────────┐  ┌──────┐                                │
-│                    │ Commit & Continue  │  │ Skip │                                │
-│                    └────────────────────┘  └──────┘                                │
-│                                                                                     │
+│ ╭───────────────────────────╮│ Git Workflow Configuration ──────────────────────┐ │
+│ │ FILES TO SYNC            ││                                                   │ │
+│ │                          ││ [✓] Create git commit                             │ │
+│ │ Source:                  ││                                                   │ │
+│ │ ▶ model.go               ││ Branch Name:                                      │ │
+│ │   12.5 KB                ││ ╭───────────────────────────────────────────────╮ │ │
+│ │                          ││ │ chore/filesync-model█                         │ │ │
+│ │ Targets (2):             ││ ╰───────────────────────────────────────────────╯ │ │
+│ │ → scanner.go             ││                                                   │ │
+│ │   3.2 KB                 ││ Commit Message:                                   │ │
+│ │ → git.go                 ││ ╭───────────────────────────────────────────────╮ │ │
+│ │   2.1 KB                 ││ │ Chore: Update model.go                        │ │ │
+│ │                          ││ │                                               │ │ │
+│ │                          ││ │ Synchronized from model.go                    │ │ │
+│ │                          ││ │ Targets: scanner.go, git.go                   │ │ │
+│ │                          ││ │                                               │ │ │
+│ │                          ││ ╰───────────────────────────────────────────────╯ │ │
+│ │                          ││                                                   │ │
+│ │                          ││ [ ] Push to origin after commit                  │ │
+│ │                          ││                                                   │ │
+│ │                          ││ Repository: /Users/jesper/src/filemirror         │ │
+│ │                          ││                                                   │ │
+│ │                          ││        ┌──────────────┐  ┌──────────┐            │ │
+│ │                          ││        │ Copy & Commit│  │  Cancel  │            │ │
+│ ╰───────────────────────────╯│        └──────────────┘  └──────────┘            │ │
+│                              │                                                   │ │
+│                              └───────────────────────────────────────────────────┘ │
 ├─────────────────────────────────────────────────────────────────────────────────────┤
-│ TAB: next field • ENTER: commit & continue • ESC: skip workflow • q: quit          │
+│ TAB: next field • ENTER: confirm • ESC: cancel • CTRL-G: toggle git                │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Key Features:**
-- Branch name input (single-line)
-- Commit message textarea (multi-line, scrollable)
-- Push toggle checkbox
-- Repository status list showing:
-  - ✓ Valid git repositories
-  - ✗ Non-git targets that will be skipped
-- Action buttons for commit or skip
-- Optional workflow (can press ESC to skip entirely)
+- **Split-panel layout**: File list on left, git configuration on right
+- **Git enabled checkbox**: Toggle git workflow on/off without leaving screen
+- **Branch name input**: Single-line text input with default value
+- **Commit message textarea**: Multi-line, scrollable textarea
+- **Push toggle checkbox**: Enable/disable auto-push to origin
+- **Repository info**: Shows detected git repository
+- **Action buttons**: "Copy & Commit" performs both operations, "Cancel" returns to selection
+- **Quick toggle**: CTRL-G to quickly enable/disable git from any field
 
 ### During Commit Execution
 
@@ -227,48 +236,58 @@ modeSelect → modeConfirm → [COPY] → quit
 3. Files are copied
 4. Program quits immediately
 
-### With Git Workflow Feature
+### With Git Workflow Feature (MERGED UI)
 ```
-modeSelect → modeConfirm → [COPY] → modeGitWorkflow → [GIT OPS] → quit with summary
-                                           ↓
-                                      [ESC to skip]
+modeSelect → modeConfirm (with git fields) → [COPY & COMMIT] → quit with summary
+                              ↓
+                    [git checkbox toggleable]
 ```
 
 **Steps:**
 1. Select source file and target files
-2. Confirm the copy operation
-3. Files are copied successfully
-4. **NEW**: Git workflow screen appears
-5. **NEW**: User can configure branch name, commit message, and push option
-6. **NEW**: Commits are created in target repositories using worktrees
-7. **NEW**: Summary stays visible in terminal after exit
+2. **MERGED**: Confirm screen shows files AND git workflow configuration
+3. **NEW**: User can toggle git checkbox, configure branch name, commit message, and push option
+4. **NEW**: Press ENTER to copy files and (optionally) create git commits
+5. **NEW**: Summary stays visible in terminal after exit
+
+**Key Difference:** No separate git workflow mode - everything happens in one enhanced confirmation screen
 
 ## Key Differences Summary
 
 ### Current State
 - **Modes**: 2 (modeSelect, modeConfirm)
 - **Input fields**: 3 (Path, Search, File List)
-- **Preview**: Toggleable side-by-side view
+- **Confirmation view**: Simple yes/no dialog
+- **Preview**: Toggleable side-by-side view (in modeSelect only)
 - **After confirmation**: Immediate quit
 - **Git integration**: None
 
-### After Git Workflow Feature
-- **Modes**: 3 (modeSelect, modeConfirm, **modeGitWorkflow**)
-- **Total input fields**: 8 (existing 3 + branch name + commit message + push toggle + 2 buttons)
-- **Preview**: Same as before
-- **After confirmation**: Optional git workflow
+### After Git Workflow Feature (MERGED DESIGN)
+- **Modes**: 2 (modeSelect, **enhanced modeConfirm**)
+- **Total input fields**: 7 (path + search in select mode, then git enabled checkbox + branch name + commit message + push toggle + 2 buttons in confirm mode)
+- **Confirmation view**: Split-panel with files on left, git config on right
+- **Preview**: Toggleable in modeSelect (hidden in modeConfirm to make room for git fields)
+- **After confirmation**: Copy and optional git commit in single operation
 - **Git integration**: Full support for multi-repo commits
+  - Toggleable via checkbox (default: ON)
   - Automatic worktree creation
   - Branch creation in target repos
   - Commit with custom message
   - Optional push to origin
   - Automatic cleanup
+- **Benefits of merged approach**:
+  - Single decision point (review files + configure git together)
+  - Faster workflow (no mode transition)
+  - Better context (see files while writing commit message)
+  - Easy to disable git (just toggle checkbox)
 
 ## Design Principles
 
-1. **Optional workflow**: Git workflow can be skipped with ESC key
-2. **Multi-repository support**: Handles targets across different repos
-3. **Safety first**: Uses worktrees to avoid disrupting working directories
-4. **Clear feedback**: Progress indicators and persistent summary
-5. **Actionable output**: Summary includes next steps for the user
-6. **Consistent styling**: Maintains FileMirror's visual language
+1. **Merged UI**: Git workflow integrated into confirmation screen (no separate mode)
+2. **Optional workflow**: Git can be toggled off via checkbox or CTRL-G shortcut
+3. **Single decision point**: Review files and configure git in one screen
+4. **Multi-repository support**: Handles targets across different repos
+5. **Safety first**: Uses worktrees to avoid disrupting working directories
+6. **Clear feedback**: Progress indicators and persistent summary
+7. **Actionable output**: Summary includes next steps for the user
+8. **Consistent styling**: Maintains FileMirror's visual language with split-panel approach
