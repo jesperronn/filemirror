@@ -155,6 +155,21 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.previewMode = (m.previewMode + 1) % 3 // Cycle: hidden -> plain -> diff -> hidden
 			m.previewScroll = 0
 			return m, nil
+		case "pagedown", "ctrl+d", "ctrl+f":
+			// Scroll preview down (works in any focus when preview is visible)
+			if m.previewMode != previewHidden {
+				m.previewScroll += 10
+			}
+			return m, nil
+		case "pageup", "ctrl+u", "ctrl+b":
+			// Scroll preview up (works in any focus when preview is visible)
+			if m.previewMode != previewHidden {
+				m.previewScroll -= 10
+				if m.previewScroll < 0 {
+					m.previewScroll = 0
+				}
+			}
+			return m, nil
 		case "tab":
 			// Handle tab to switch focus
 			switch m.focus {
@@ -298,15 +313,15 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.previewScroll = 0
 		return m, nil
 
-	case "pagedown", "ctrl+d":
-		// Scroll preview down
+	case "pagedown", "ctrl+d", "ctrl+f":
+		// Scroll preview down (works in any focus when preview is visible)
 		if m.previewMode != previewHidden {
 			m.previewScroll += 10
 		}
 		return m, nil
 
-	case "pageup", "ctrl+u":
-		// Scroll preview up
+	case "pageup", "ctrl+u", "ctrl+b":
+		// Scroll preview up (works in any focus when preview is visible)
 		if m.previewMode != previewHidden {
 			m.previewScroll -= 10
 			if m.previewScroll < 0 {
@@ -504,9 +519,28 @@ func (m model) viewSelect() string {
 
 	switch m.focus {
 	case focusPath:
-		hints = "PATH: Type to edit • ENTER: reload & next • TAB: next • CTRL-P: cycle preview • CTRL-C: quit"
+		var pathHints []string
+		pathHints = append(pathHints, "Type to edit")
+		pathHints = append(pathHints, "ENTER: reload & next")
+		pathHints = append(pathHints, "TAB: next")
+		pathHints = append(pathHints, "CTRL-P: cycle preview")
+		if m.previewMode != previewHidden {
+			pathHints = append(pathHints, "CTRL-U/D: scroll preview")
+		}
+		pathHints = append(pathHints, "CTRL-C: quit")
+		hints = "PATH: " + strings.Join(pathHints, " • ")
 	case focusSearch:
-		hints = "SEARCH: Type pattern (*.go, config) • ENTER: reload & next • TAB: next • Shift+TAB: prev • CTRL-P: cycle preview • CTRL-C: quit"
+		var searchHints []string
+		searchHints = append(searchHints, "Type pattern (*.go, config)")
+		searchHints = append(searchHints, "ENTER: reload & next")
+		searchHints = append(searchHints, "TAB: next")
+		searchHints = append(searchHints, "Shift+TAB: prev")
+		searchHints = append(searchHints, "CTRL-P: cycle preview")
+		if m.previewMode != previewHidden {
+			searchHints = append(searchHints, "CTRL-U/D: scroll preview")
+		}
+		searchHints = append(searchHints, "CTRL-C: quit")
+		hints = "SEARCH: " + strings.Join(searchHints, " • ")
 	case focusList:
 		var fileHints []string
 		fileHints = append(fileHints, "↑/↓ or k/j: navigate")
@@ -524,7 +558,7 @@ func (m model) viewSelect() string {
 		fileHints = append(fileHints, fmt.Sprintf("p/CTRL-P: %s", previewModeStr))
 
 		if m.previewMode != previewHidden {
-			fileHints = append(fileHints, "PgUp/PgDn: scroll")
+			fileHints = append(fileHints, "CTRL-U/D: scroll preview")
 		}
 		fileHints = append(fileHints, "TAB: next")
 		fileHints = append(fileHints, "?: help")
@@ -784,7 +818,7 @@ func (m model) renderPreview() string {
 
 	scrollInfo := ""
 	if len(lines) > previewHeight {
-		scrollInfo = fmt.Sprintf(" [%d-%d of %d lines] PgUp/PgDn to scroll ", start+1, end, len(lines))
+		scrollInfo = fmt.Sprintf(" [%d-%d of %d lines] CTRL-U/D to scroll ", start+1, end, len(lines))
 	} else {
 		scrollInfo = fmt.Sprintf(" [%d lines] ", len(lines))
 	}
@@ -961,8 +995,9 @@ FILE LIST
 
 PREVIEW PANEL
   p / CTRL-P      Cycle preview modes: hidden → plain → diff → hidden
-  PgUp / PgDn     Scroll preview up/down
   CTRL-U / CTRL-D Scroll preview up/down
+  CTRL-B / CTRL-F Scroll preview up/down (alternative)
+  PgUp / PgDn     Scroll preview up/down (if available)
 
 GENERAL
   ?               Toggle this help screen
