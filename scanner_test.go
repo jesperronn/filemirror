@@ -158,13 +158,13 @@ func TestScanFilesDeepDirectory(t *testing.T) {
 
 	// Create files at different depths
 	testFiles := map[string]bool{
-		filepath.Join(tmpDir, "root.txt"):                      true,  // depth 0
-		filepath.Join(tmpDir, "a", "level1.txt"):               true,  // depth 1
-		filepath.Join(tmpDir, "a", "b", "level2.txt"):          true,  // depth 2
-		filepath.Join(tmpDir, "a", "b", "c", "level3.txt"):     true,  // depth 3
-		filepath.Join(tmpDir, "a", "b", "c", "d", "level4.txt"):true,  // depth 4
+		filepath.Join(tmpDir, "root.txt"):                            true,  // depth 0
+		filepath.Join(tmpDir, "a", "level1.txt"):                     true,  // depth 1
+		filepath.Join(tmpDir, "a", "b", "level2.txt"):                true,  // depth 2
+		filepath.Join(tmpDir, "a", "b", "c", "level3.txt"):           true,  // depth 3
+		filepath.Join(tmpDir, "a", "b", "c", "d", "level4.txt"):      true,  // depth 4
 		filepath.Join(tmpDir, "a", "b", "c", "d", "e", "level5.txt"): false, // depth 5 - should be skipped
-		filepath.Join(deepPath, "deep.txt"):                    false, // depth 6 - should be skipped
+		filepath.Join(deepPath, "deep.txt"):                          false, // depth 6 - should be skipped
 	}
 
 	for file := range testFiles {
@@ -200,7 +200,7 @@ func TestScanFilesAllExcludedDirs(t *testing.T) {
 
 	// Create files in all excluded directories
 	excludedDirs := []string{"node_modules", ".git", "vendor", ".next", "dist", "build", "target", ".cache"}
-	
+
 	for _, dir := range excludedDirs {
 		dirPath := filepath.Join(tmpDir, dir)
 		if err := os.MkdirAll(dirPath, 0o755); err != nil {
@@ -308,7 +308,7 @@ func TestScanFilesSorted(t *testing.T) {
 	// Create files with different timestamps
 	// Sleep between creations to ensure different mod times
 	testFiles := []string{"old.txt", "medium.txt", "new.txt"}
-	
+
 	for _, file := range testFiles {
 		path := filepath.Join(tmpDir, file)
 		if err := os.WriteFile(path, []byte("test"), 0o644); err != nil {
@@ -370,4 +370,3 @@ func TestScanFilesRelativePaths(t *testing.T) {
 		}
 	}
 }
-

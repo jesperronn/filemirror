@@ -407,6 +407,48 @@ func TestMatchesFilePattern(t *testing.T) {
 			pattern:  "test",
 			want:     true,
 		},
+		{
+			name:     "empty pattern",
+			filePath: "/path/to/file.go",
+			pattern:  "",
+			want:     true,
+		},
+		{
+			name:     "glob pattern matching filename",
+			filePath: "/path/to/test.go",
+			pattern:  "*.go",
+			want:     true,
+		},
+		{
+			name:     "glob pattern not matching",
+			filePath: "/path/to/test.go",
+			pattern:  "*.txt",
+			want:     false,
+		},
+		{
+			name:     "substring match with path separators",
+			filePath: "/src/pkg/main.go",
+			pattern:  "src/pkg",
+			want:     true,
+		},
+		{
+			name:     "glob pattern with multiple wildcards",
+			filePath: "/path/to/test_file.go",
+			pattern:  "test_*.go",
+			want:     true,
+		},
+		{
+			name:     "special characters in path",
+			filePath: "/path-with-dash/file_name.go",
+			pattern:  "dash",
+			want:     true,
+		},
+		{
+			name:     "very long path",
+			filePath: "/very/long/path/with/many/directories/and/subdirs/file.txt",
+			pattern:  "file",
+			want:     true,
+		},
 	}
 
 	for _, tt := range tests {

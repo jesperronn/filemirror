@@ -243,4 +243,3 @@ func TestCopyFileOverwritesExisting(t *testing.T) {
 		t.Errorf("Content mismatch: got %q, want %q", string(dstContent), newContent)
 	}
 }
-
