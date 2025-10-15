@@ -18,7 +18,7 @@ Designed for multi-repo workflows where safe, auditable propagation of canonical
 Install directly to your `$GOPATH/bin`:
 
 ```bash
-go install github.com/jesper/filemirror@latest
+go install github.com/jesperronn/filemirror@latest
 ```
 
 This will make `fmr` available globally in your terminal.
@@ -26,7 +26,7 @@ This will make `fmr` available globally in your terminal.
 ### Option 2: From Source with Build Script
 
 ```bash
-git clone https://github.com/jesper/filemirror
+git clone https://github.com/jesperronn/filemirror
 cd filemirror
 bin/build --install
 ```
@@ -36,7 +36,7 @@ The `--install` flag builds and installs the binary to `$GOPATH/bin`.
 ### Option 3: Manual Build
 
 ```bash
-git clone https://github.com/jesper/filemirror
+git clone https://github.com/jesperronn/filemirror
 cd filemirror
 go build -o fmr .
 ```

@@ -1,4 +1,4 @@
-module github.com/jesper/filemirror
+module github.com/jesperronn/filemirror
 
 go 1.25.2
 
