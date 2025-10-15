@@ -65,19 +65,11 @@ func createWorktreeAndBranch(repoPath, branchName string) (string, error) {
 }
 
 // commitChanges stages and commits files in the worktree
-func commitChanges(worktreePath, message string, files []string) error {
-	// Stage files
-	for _, file := range files {
-		// Get the path relative to the worktree
-		relPath, err := filepath.Rel(worktreePath, file)
-		if err != nil {
-			return fmt.Errorf("failed to get relative path: %w", err)
-		}
-
-		addCmd := exec.Command("git", "-C", worktreePath, "add", relPath)
-		if output, err := addCmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("failed to stage file %s: %w\n%s", relPath, err, string(output))
-		}
+func commitChanges(worktreePath, message string) error {
+	// Stage all changes in the worktree
+	addCmd := exec.Command("git", "-C", worktreePath, "add", "-A")
+	if output, err := addCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to stage files: %w\n%s", err, string(output))
 	}
 
 	// Commit changes
@@ -190,7 +182,7 @@ func processRepo(repoPath string, files []string, branchName, commitMessage stri
 	}
 
 	// Commit changes
-	if err := commitChanges(worktreePath, commitMessage, files); err != nil {
+	if err := commitChanges(worktreePath, commitMessage); err != nil {
 		return false, fmt.Errorf("repo %s: %w", repoPath, err)
 	}
 

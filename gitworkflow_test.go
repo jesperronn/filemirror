@@ -64,6 +64,44 @@ func createTestGitRepo(t *testing.T) string {
 	return tmpDir
 }
 
+// verifyWorktreesCleanedUp verifies that no temporary worktrees exist for a repo
+func verifyWorktreesCleanedUp(t *testing.T, repoPath string) {
+	t.Helper()
+
+	// List all worktrees for the repo
+	cmd := exec.Command("git", "-C", repoPath, "worktree", "list")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("Warning: failed to list worktrees: %v", err)
+		return
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	// Should only have the main worktree (the repo itself)
+	if len(lines) > 1 {
+		t.Errorf("Expected only main worktree, but found %d worktrees:\n%s", len(lines), string(output))
+	}
+
+	// Also check temp directory for any fmr-worktree-* directories
+	tmpDir := os.TempDir()
+	entries, err := os.ReadDir(tmpDir)
+	if err != nil {
+		t.Logf("Warning: failed to read temp dir: %v", err)
+		return
+	}
+
+	var worktreeDirs []string
+	for _, entry := range entries {
+		if entry.IsDir() && strings.HasPrefix(entry.Name(), "fmr-worktree-") {
+			worktreeDirs = append(worktreeDirs, entry.Name())
+		}
+	}
+
+	if len(worktreeDirs) > 0 {
+		t.Errorf("Found %d temporary worktree directories that weren't cleaned up: %v", len(worktreeDirs), worktreeDirs)
+	}
+}
+
 func TestDetectGitRoot(t *testing.T) {
 	// Create a test git repo
 	repoPath := createTestGitRepo(t)
@@ -290,7 +328,7 @@ func TestCommitChanges(t *testing.T) {
 				}
 			}
 
-			err := commitChanges(worktreePath, tt.message, tt.files)
+			err := commitChanges(worktreePath, tt.message)
 
 			if tt.expectError && err == nil {
 				t.Error("Expected error, got nil")
@@ -413,11 +451,158 @@ func TestCopyFileToWorktree(t *testing.T) {
 }
 
 func TestPerformGitWorkflow(t *testing.T) {
-	t.Skip("Skipping integration test - requires fix to commitChanges function to handle file paths correctly")
+	// Create two test repos
+	repo1 := createTestGitRepo(t)
+	defer os.RemoveAll(repo1)
+
+	repo2 := createTestGitRepo(t)
+	defer os.RemoveAll(repo2)
+
+	tests := []struct {
+		name          string
+		setupRepos    func() map[string][]string
+		branchName    string
+		commitMsg     string
+		shouldPush    bool
+		expectSuccess int
+		expectErrors  int
+	}{
+		{
+			name: "single repo with one file",
+			setupRepos: func() map[string][]string {
+				// Create a file in repo1
+				testFile := filepath.Join(repo1, "workflow-test.txt")
+				os.WriteFile(testFile, []byte("workflow content"), 0o600)
+				return map[string][]string{
+					repo1: {testFile},
+				}
+			},
+			branchName:    "test-workflow",
+			commitMsg:     "Test workflow commit",
+			shouldPush:    false,
+			expectSuccess: 1,
+			expectErrors:  0,
+		},
+		{
+			name: "multiple repos",
+			setupRepos: func() map[string][]string {
+				// Create files in both repos
+				file1 := filepath.Join(repo1, "multi-test1.txt")
+				file2 := filepath.Join(repo2, "multi-test2.txt")
+				os.WriteFile(file1, []byte("content1"), 0o600)
+				os.WriteFile(file2, []byte("content2"), 0o600)
+				return map[string][]string{
+					repo1: {file1},
+					repo2: {file2},
+				}
+			},
+			branchName:    "multi-repo-test",
+			commitMsg:     "Multi-repo commit",
+			shouldPush:    false,
+			expectSuccess: 2,
+			expectErrors:  0,
+		},
+		{
+			name: "empty repos map",
+			setupRepos: func() map[string][]string {
+				return map[string][]string{}
+			},
+			branchName:    "empty-test",
+			commitMsg:     "Empty commit",
+			shouldPush:    false,
+			expectSuccess: 0,
+			expectErrors:  0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repos := tt.setupRepos()
+
+			successRepos, errors := performGitWorkflow(repos, tt.branchName, tt.commitMsg, tt.shouldPush)
+
+			if len(successRepos) != tt.expectSuccess {
+				t.Errorf("Expected %d successful repos, got %d", tt.expectSuccess, len(successRepos))
+			}
+
+			if len(errors) != tt.expectErrors {
+				t.Errorf("Expected %d errors, got %d: %v", tt.expectErrors, len(errors), errors)
+			}
+
+			// Verify worktrees are cleaned up
+			for repoPath := range repos {
+				verifyWorktreesCleanedUp(t, repoPath)
+			}
+		})
+	}
 }
 
 func TestProcessRepo(t *testing.T) {
-	t.Skip("Skipping integration test - requires fix to commitChanges function to handle file paths correctly")
+	tests := []struct {
+		name          string
+		setupRepo     func(t *testing.T) (repoPath string, files []string)
+		branchName    string
+		commitMsg     string
+		shouldPush    bool
+		expectSuccess bool
+		expectError   bool
+	}{
+		{
+			name: "process single file successfully",
+			setupRepo: func(t *testing.T) (string, []string) {
+				repo := createTestGitRepo(t)
+				testFile := filepath.Join(repo, "process-test.txt")
+				if err := os.WriteFile(testFile, []byte("process content"), 0o600); err != nil {
+					t.Fatalf("Failed to create test file: %v", err)
+				}
+				return repo, []string{testFile}
+			},
+			branchName:    "process-branch",
+			commitMsg:     "Process commit",
+			shouldPush:    false,
+			expectSuccess: true,
+			expectError:   false,
+		},
+		{
+			name: "process multiple files",
+			setupRepo: func(t *testing.T) (string, []string) {
+				repo := createTestGitRepo(t)
+				file1 := filepath.Join(repo, "file1.txt")
+				file2 := filepath.Join(repo, "file2.txt")
+				os.WriteFile(file1, []byte("content1"), 0o600)
+				os.WriteFile(file2, []byte("content2"), 0o600)
+				return repo, []string{file1, file2}
+			},
+			branchName:    "multi-file-process",
+			commitMsg:     "Multi-file process commit",
+			shouldPush:    false,
+			expectSuccess: true,
+			expectError:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repoPath, files := tt.setupRepo(t)
+			defer os.RemoveAll(repoPath)
+
+			success, err := processRepo(repoPath, files, tt.branchName, tt.commitMsg, tt.shouldPush)
+
+			if tt.expectError && err == nil {
+				t.Error("Expected error, got nil")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+
+			if success != tt.expectSuccess {
+				t.Errorf("Expected success=%v, got %v", tt.expectSuccess, success)
+			}
+
+			// Verify worktrees are cleaned up
+			verifyWorktreesCleanedUp(t, repoPath)
+		})
+	}
 }
 
 func TestPushBranch(t *testing.T) {
