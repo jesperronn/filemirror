@@ -471,7 +471,8 @@ func (m model) viewSelect() string {
 	// Always visible regardless of preview state
 	instructStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: "#666666", Dark: "#999999"}).
-		Width(m.width)
+		MaxWidth(m.width).
+		Inline(true)
 	var hints string
 
 	switch m.focus {
