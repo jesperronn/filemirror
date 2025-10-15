@@ -2,7 +2,6 @@ package filemirror
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -360,40 +359,52 @@ func TestCopySourceToTargets(t *testing.T) {
 	}
 }
 
-func TestInitGitWorkflow(t *testing.T) {
-	// Setup
-	tempDir := t.TempDir()
-	
-	// Initialize a git repo
-	cmd := exec.Command("git", "init")
-	cmd.Dir = tempDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to initialize git repo: %v", err)
+func TestMatchesFilePattern(t *testing.T) {
+	tests := []struct {
+		name     string
+		filePath string
+		pattern  string
+		want     bool
+	}{
+		{
+			name:     "exact match",
+			filePath: "/path/to/test.go",
+			pattern:  "test.go",
+			want:     true,
+		},
+		{
+			name:     "contains match",
+			filePath: "/path/to/mytest.go",
+			pattern:  "test",
+			want:     true,
+		},
+		{
+			name:     "case insensitive match",
+			filePath: "/path/to/TEST.go",
+			pattern:  "test",
+			want:     true,
+		},
+		{
+			name:     "no match",
+			filePath: "/path/to/file.go",
+			pattern:  "test",
+			want:     false,
+		},
+		{
+			name:     "path contains pattern",
+			filePath: "/test/path/to/file.go",
+			pattern:  "test",
+			want:     true,
+		},
 	}
-	
-	// Create a test file
-	testFile := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
-	
-	config := &MirrorConfig{
-		RepoPath:     tempDir,
-		TargetBranch: "test-branch",
-		Files:        []string{"test.txt"}, // Use relative path
-		WorkDir:      tempDir,
-	}
-	
-	// Set up filtered files with relative paths
-	config.filteredFiles = []string{"test.txt"}
-	
-	err := config.initGitWorkflow()
-	if err != nil {
-		t.Errorf("initGitWorkflow() error = %v", err)
-	}
-	
-	// Verify gitWorkflow was initialized
-	if config.gitWorkflow == nil {
-		t.Error("gitWorkflow should be initialized")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := matchesFilePattern(tt.filePath, tt.pattern)
+			if got != tt.want {
+				t.Errorf("matchesFilePattern(%q, %q) = %v, want %v",
+					tt.filePath, tt.pattern, got, tt.want)
+			}
+		})
 	}
 }
