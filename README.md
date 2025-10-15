@@ -1,10 +1,15 @@
-# multiedit -- mirror files across multiple locations and repositories
+# FileMirror (fmr)
 
-A Go CLI tool for interactively finding, selecting, and synchronizing file content across multiple files in your project.
+FileMirror is a repo-aware CLI for mirroring a canonical file across multiple directories and repositories.
 
-## Overview
+Features: interactive TUI, diff preview, per-repo worktree creation to stage & commit changes, atomic writes, and dry-run mode.
 
-`multiedit` helps you quickly propagate changes from one source file to multiple target files. This is particularly useful when you have the same file (e.g., configuration, utilities, components) in multiple locations and need to keep them in sync.
+**Quickstart:**
+```bash
+fmr --path ~/projects "config.yaml"
+```
+
+Designed for multi-repo workflows where safe, auditable propagation of canonical files is required.
 
 ## Installation
 
@@ -13,46 +18,46 @@ A Go CLI tool for interactively finding, selecting, and synchronizing file conte
 ```bash
 git clone https://github.com/jesper/multiedit
 cd multiedit
-go build -o multiedit .
+go build -o fmr .
 ```
 
 ### Quick Start
 
 ```bash
 # Show help
-./multiedit --help
+./fmr --help
 
 # Search all files in current directory
-./multiedit
+./fmr
 
 # Search for specific file pattern
-./multiedit "*.go"
+./fmr "*.go"
 
 # Search for files containing "config"
-./multiedit "config"
+./fmr "config"
 
 # Search in a different directory
-./multiedit --path ~/projects "*.go"
+./fmr --path ~/projects "*.go"
 ```
 
 ## Features
 
-- **Live File Preview**: Split-screen view showing file contents in real-time
+- **Interactive TUI**: Split-screen view with live file preview and diff mode
 - **Diff Preview Mode**: Compare target files against source with colored diff view
+- **Repo-Aware**: Detects git repositories and shows current branch
+- **Per-Repo Worktree**: Create worktrees for staging and committing changes per repository
+- **Atomic Writes**: Safe file operations that preserve permissions
+- **Dry-Run Mode**: Preview operations without making changes
 - **Interactive Path Navigation**: Change directories without leaving the app using TAB and CTRL-R
 - **Dual Input Fields**: Separate, editable Path and Search inputs for maximum flexibility
 - **Glob Pattern Support**: Filter files with wildcards (`*.go`, `*.java`, etc.) or substring matching
 - **Multi-File Sync**: Copy content from one source file to multiple targets at once
-- **File Metadata Display**: Shows path, size, modification time, and git branch
-- **Safe Operations**: Atomic file copying that preserves permissions
-- **Smart Filtering**: Excludes common directories (node_modules, .git, vendor, etc.)
 - **Keyboard-Driven UI**: Fast navigation with vim-style keybindings
-- **Git Integration**: Shows current branch for files in git repositories
 
 ## Usage
 
 ```bash
-multiedit [OPTIONS] [PATTERN]
+fmr [OPTIONS] [PATTERN]
 ```
 
 ### Options
@@ -60,7 +65,7 @@ multiedit [OPTIONS] [PATTERN]
 - `-p, --path PATH`: Change to directory PATH before searching
   - Supports both absolute and relative paths
   - Allows you to search files in any directory without changing your current location
-  - Example: `multiedit --path ~/projects "*.go"`
+  - Example: `fmr --path ~/projects "*.go"`
 
 - `-h, --help`: Show help message
 - `-v, --version`: Show version information
@@ -79,9 +84,9 @@ multiedit [OPTIONS] [PATTERN]
 | `TAB` | Cycle focus forward: Path → Search → File List → Path |
 | `Shift+TAB` | Cycle focus backward: Path ← Search ← File List |
 | `CTRL-R` | Reload files from the current path (Path/Search focus) |
-| `p` | Toggle file preview panel on/off |
-| `d` | Toggle diff mode (shows diff vs source when source is selected) |
+| `p` / `CTRL-P` | Cycle preview modes: hidden → plain → diff → hidden |
 | `PgUp`/`PgDn` | Scroll preview panel (or `CTRL-U`/`CTRL-D`) |
+| `?` | Show help overlay with all shortcuts |
 | Type | Edit the focused input (Path or Search) |
 | `↑`/`↓` or `k`/`j` | Navigate through file list (when List is focused) |
 | `s` | Mark current file as SOURCE (when List is focused) |
@@ -106,8 +111,8 @@ Files are sorted by modification time (newest first).
 Here's a typical workflow for synchronizing configuration files across multiple directories:
 
 ```bash
-# 1. Start multiedit (optionally in a specific directory)
-./multiedit --path ~/projects "config.json"
+# 1. Start FileMirror (optionally in a specific directory)
+./fmr --path ~/projects "config.json"
 
 # 2. In the interactive UI, you'll see two input fields:
 #    Path:   /Users/you/projects        (editable)
@@ -123,7 +128,7 @@ Here's a typical workflow for synchronizing configuration files across multiple 
 
 # 4. Mark files and review diffs:
 #    - Press 's' on the "correct" config file to mark it as source
-#    - Press 'd' to toggle diff mode and see differences
+#    - Press 'p' or 'CTRL-P' to cycle through preview modes (hidden/plain/diff)
 #    - Press Space on target files you want to update (can mark multiple)
 #    - Press Enter to review your selection
 
@@ -141,55 +146,56 @@ Here's a typical workflow for synchronizing configuration files across multiple 
 - **Propagate utility functions** across multiple packages
 - **Copy templates** to multiple locations in a monorepo
 - **Standardize linting configs** across projects
-- **Browse and sync files** without leaving your terminal
+- **Mirror canonical files** across multiple repositories with audit trail
 
 ## Examples
 
 ### Search all Go files in current directory
 ```bash
-./multiedit "*.go"
+./fmr "*.go"
 ```
 
 ### Find all package.json files
 ```bash
-./multiedit "package.json"
+./fmr "package.json"
 ```
 
 ### Search for files containing "component"
 ```bash
-./multiedit "component"
+./fmr "component"
 ```
 
 ### Search in a specific directory
 ```bash
-./multiedit --path /path/to/project "*.go"
+./fmr --path /path/to/project "*.go"
 ```
 
 ### Search in parent directory
 ```bash
-./multiedit --path .. "config.json"
+./fmr --path .. "config.json"
 ```
 
 ### Search in home directory subdirectory
 ```bash
-./multiedit -p ~/Documents/projects "*.md"
+./fmr -p ~/Documents/projects "*.md"
 ```
 
 ### Search all files (no filter)
 ```bash
-./multiedit
+./fmr
 ```
 
 ### Interactive navigation (once running)
 ```
-1. Start: ./multiedit
+1. Start: ./fmr
 2. Path input is focused by default - type to edit
 3. Press TAB to move to Search input
 4. Type a pattern (e.g., *.ts)
 5. Press TAB to move to File List
 6. Use ↑/↓ or k/j to navigate files
 7. Press 's' to mark source, Space to mark targets
-8. Press Enter to confirm, or TAB/Shift+TAB to change focus
+8. Press 'p' to toggle preview mode
+9. Press Enter to confirm, or TAB/Shift+TAB to change focus
 ```
 
 ## How It Works
@@ -212,7 +218,7 @@ Here's a typical workflow for synchronizing configuration files across multiple 
 ### Requirements
 
 - Go 1.21 or later
-- Git (optional, for branch detection)
+- Git (optional, for branch detection and repo features)
 
 ### Development Scripts
 
@@ -297,7 +303,7 @@ You can also use standard Go commands directly:
 
 ```bash
 # Build
-go build -o multiedit .
+go build -o fmr .
 
 # Test
 go test -v ./...
