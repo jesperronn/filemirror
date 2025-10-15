@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -24,6 +25,16 @@ const (
 	focusPath inputFocus = iota
 	focusSearch
 	focusList
+)
+
+type confirmFocus int
+
+const (
+	focusConfirmButtons confirmFocus = iota
+	focusGitEnabled
+	focusBranchName
+	focusCommitMsg
+	focusPushToggle
 )
 
 type previewMode int
@@ -52,6 +63,14 @@ type model struct {
 	previewScroll int         // scroll position in preview
 	previewMode   previewMode // hidden, plain, or diff mode
 	showHelp      bool        // whether to show help overlay
+
+	// Git workflow fields (integrated into modeConfirm)
+	gitEnabled      bool
+	branchNameInput textinput.Model
+	commitMsgInput  textarea.Model
+	shouldPush      bool
+	confirmFocus    confirmFocus
+	gitRepos        map[string][]string // repo path -> list of changed files
 }
 
 type scanCompleteMsg struct {
@@ -390,6 +409,7 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Proceed to confirmation if we have source and targets
 		if m.sourceFile != nil && len(m.selected) > 0 {
 			m.mode = modeConfirm
+			m.initGitWorkflow()
 		}
 	}
 
@@ -397,23 +417,165 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "y", "Y":
-		// Perform the copy operation
-		err := m.copySourceToTargets()
-		if err != nil {
-			m.err = err
+	// Handle textarea input when focused
+	if m.confirmFocus == focusCommitMsg {
+		var cmd tea.Cmd
+		switch msg.String() {
+		case "ctrl+c", "q":
+			return m, tea.Quit
+		case "esc":
+			// Go back to selection mode
+			m.mode = modeSelect
 			return m, nil
+		case "tab":
+			// Move to next field
+			m.confirmFocus = focusPushToggle
+			m.commitMsgInput.Blur()
+			return m, nil
+		case "shift+tab":
+			// Move to previous field
+			m.confirmFocus = focusBranchName
+			m.commitMsgInput.Blur()
+			m.branchNameInput.Focus()
+			return m, nil
+		default:
+			// Let textarea handle the input
+			m.commitMsgInput, cmd = m.commitMsgInput.Update(msg)
+			return m, cmd
 		}
+	}
+
+	// Handle branch name input when focused
+	if m.confirmFocus == focusBranchName {
+		var cmd tea.Cmd
+		switch msg.String() {
+		case "ctrl+c", "q":
+			return m, tea.Quit
+		case "esc":
+			m.mode = modeSelect
+			return m, nil
+		case "tab":
+			m.confirmFocus = focusCommitMsg
+			m.branchNameInput.Blur()
+			m.commitMsgInput.Focus()
+			return m, nil
+		case "shift+tab":
+			m.confirmFocus = focusGitEnabled
+			m.branchNameInput.Blur()
+			return m, nil
+		case "enter":
+			// Move to commit message
+			m.confirmFocus = focusCommitMsg
+			m.branchNameInput.Blur()
+			m.commitMsgInput.Focus()
+			return m, nil
+		default:
+			m.branchNameInput, cmd = m.branchNameInput.Update(msg)
+			return m, cmd
+		}
+	}
+
+	// Handle other keys
+	switch msg.String() {
+	case "ctrl+c", "q":
 		return m, tea.Quit
 
-	case "n", "N", "esc":
+	case "esc":
 		// Go back to selection mode
 		m.mode = modeSelect
 		return m, nil
 
-	case "ctrl+c", "q":
-		return m, tea.Quit
+	case "ctrl+g":
+		// Quick toggle git enabled
+		m.gitEnabled = !m.gitEnabled
+		return m, nil
+
+	case "tab":
+		// Cycle focus forward
+		switch m.confirmFocus {
+		case focusConfirmButtons:
+			if m.gitEnabled {
+				m.confirmFocus = focusGitEnabled
+			}
+		case focusGitEnabled:
+			m.confirmFocus = focusBranchName
+			m.branchNameInput.Focus()
+		case focusBranchName:
+			m.confirmFocus = focusCommitMsg
+			m.branchNameInput.Blur()
+			m.commitMsgInput.Focus()
+		case focusCommitMsg:
+			m.confirmFocus = focusPushToggle
+			m.commitMsgInput.Blur()
+		case focusPushToggle:
+			m.confirmFocus = focusConfirmButtons
+		}
+		return m, nil
+
+	case "shift+tab":
+		// Cycle focus backward
+		switch m.confirmFocus {
+		case focusConfirmButtons:
+			m.confirmFocus = focusPushToggle
+		case focusGitEnabled:
+			m.confirmFocus = focusConfirmButtons
+		case focusBranchName:
+			m.confirmFocus = focusGitEnabled
+			m.branchNameInput.Blur()
+		case focusCommitMsg:
+			m.confirmFocus = focusBranchName
+			m.commitMsgInput.Blur()
+			m.branchNameInput.Focus()
+		case focusPushToggle:
+			m.confirmFocus = focusCommitMsg
+			m.commitMsgInput.Focus()
+		}
+		return m, nil
+
+	case " ":
+		// Toggle checkboxes
+		switch m.confirmFocus {
+		case focusGitEnabled:
+			m.gitEnabled = !m.gitEnabled
+		case focusPushToggle:
+			m.shouldPush = !m.shouldPush
+		}
+		return m, nil
+
+	case "enter":
+		// Execute on buttons or git enabled
+		if m.confirmFocus == focusConfirmButtons || m.confirmFocus == focusGitEnabled {
+			// Perform the copy operation
+			err := m.copySourceToTargets()
+			if err != nil {
+				m.err = err
+				return m, nil
+			}
+
+			// Perform git workflow if enabled
+			if m.gitEnabled && len(m.gitRepos) > 0 {
+				branchName := m.branchNameInput.Value()
+				commitMsg := m.commitMsgInput.Value()
+
+				successRepos, errors := performGitWorkflow(m.gitRepos, branchName, commitMsg, m.shouldPush)
+
+				// Handle errors
+				if len(errors) > 0 {
+					errMsg := "Git workflow errors:\n"
+					for _, err := range errors {
+						errMsg += fmt.Sprintf("- %v\n", err)
+					}
+					if len(successRepos) > 0 {
+						errMsg += fmt.Sprintf("\nSuccessfully committed to %d repositories", len(successRepos))
+					}
+					m.err = fmt.Errorf("%s", errMsg)
+					return m, nil
+				}
+			}
+
+			return m, tea.Quit
+		}
+		return m, nil
 	}
 
 	return m, nil
@@ -846,27 +1008,181 @@ func (m model) renderPreviewError(errMsg string) string {
 func (m model) viewConfirm() string {
 	var b strings.Builder
 
-	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("11"))
-	b.WriteString(headerStyle.Render("Confirm Synchronization") + "\n\n")
+	// Header
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))
+	b.WriteString(headerStyle.Render("FileMirror - Confirm Copy & Git Workflow") + "\n\n")
 
+	// Instructions
+	instructStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.AdaptiveColor{Light: "#666666", Dark: "#999999"})
+	hints := "FILE LIST: Review • GIT WORKFLOW: TAB to navigate • ENTER: copy & commit • CTRL-G: toggle git • ESC: cancel • q: quit"
+	b.WriteString(instructStyle.Render(hints) + "\n\n")
+
+	// Path and search (for context)
+	pathBox := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		Padding(0, 1).
+		Width(m.width - 4)
+	b.WriteString(pathBox.Render(fmt.Sprintf("PATH: %s", m.workDir)) + "\n")
+
+	searchBox := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		Padding(0, 1).
+		Width(m.width - 4)
+	b.WriteString(searchBox.Render(fmt.Sprintf("SEARCH: %s", m.searchInput.Value())) + "\n\n")
+
+	// Source indicator
 	if m.sourceFile != nil {
 		sourceStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Bold(true)
-		b.WriteString(sourceStyle.Render(fmt.Sprintf("Source: %s\n", m.sourceFile.Path)))
+		b.WriteString(sourceStyle.Render(fmt.Sprintf("Source: %s", m.sourceFile.Path)) + "\n\n")
 	}
 
-	b.WriteString("\nTargets:\n")
-	targetStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
+	// Split panel layout
+	fileListWidth := m.width / 3
+	gitPanelWidth := (m.width * 2) / 3
+
+	// Left panel: File list
+	var fileListContent strings.Builder
+	fileListContent.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true).Render("FILES TO SYNC") + "\n\n")
+
+	if m.sourceFile != nil {
+		fileListContent.WriteString("Source:\n")
+		fileListContent.WriteString(fmt.Sprintf("▶ %s\n", m.sourceFile.Path))
+		fileListContent.WriteString(fmt.Sprintf("  %s\n\n", formatSize(m.sourceFile.Size)))
+	}
+
+	targetCount := 0
+	fileListContent.WriteString(fmt.Sprintf("Targets (%d):\n", len(m.selected)))
 	for idx := range m.selected {
 		if idx < len(m.filteredFiles) {
-			b.WriteString(targetStyle.Render(fmt.Sprintf("  - %s\n", m.filteredFiles[idx].Path)))
+			file := m.filteredFiles[idx]
+			fileListContent.WriteString(fmt.Sprintf("→ %s\n", file.Path))
+			fileListContent.WriteString(fmt.Sprintf("  %s\n", formatSize(file.Size)))
+			targetCount++
 		}
 	}
 
-	b.WriteString("\n")
-	warnStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
-	b.WriteString(warnStyle.Render("This will overwrite the target files!") + "\n\n")
+	fileListBox := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		Padding(0, 1).
+		Width(fileListWidth - 4).
+		Height(m.height - 18)
 
-	b.WriteString("Do you want to proceed? (y/n): ")
+	renderedFileList := fileListBox.Render(fileListContent.String())
+
+	// Right panel: Git workflow configuration
+	var gitPanelContent strings.Builder
+	titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true)
+	gitPanelContent.WriteString(titleStyle.Render("Git Workflow Configuration") + "\n\n")
+
+	// Git enabled checkbox
+	gitCheckbox := "[ ]"
+	if m.gitEnabled {
+		gitCheckbox = "[✓]"
+	}
+	gitEnabledStyle := lipgloss.NewStyle()
+	if m.confirmFocus == focusGitEnabled {
+		gitEnabledStyle = gitEnabledStyle.Background(lipgloss.Color("240")).Bold(true)
+	}
+	gitPanelContent.WriteString(gitEnabledStyle.Render(fmt.Sprintf("%s Create git commit", gitCheckbox)) + "\n\n")
+
+	// Branch name
+	branchLabelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
+	if m.confirmFocus == focusBranchName {
+		branchLabelStyle = branchLabelStyle.Bold(true)
+	}
+	gitPanelContent.WriteString(branchLabelStyle.Render("Branch Name:") + "\n")
+
+	branchBorderColor := lipgloss.Color("240")
+	if m.confirmFocus == focusBranchName {
+		branchBorderColor = lipgloss.Color("12")
+	}
+	branchBox := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(branchBorderColor).
+		Padding(0, 1).
+		Width(gitPanelWidth - 8)
+	gitPanelContent.WriteString(branchBox.Render(m.branchNameInput.View()) + "\n\n")
+
+	// Commit message
+	commitLabelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
+	if m.confirmFocus == focusCommitMsg {
+		commitLabelStyle = commitLabelStyle.Bold(true)
+	}
+	gitPanelContent.WriteString(commitLabelStyle.Render("Commit Message:") + "\n")
+
+	commitBorderColor := lipgloss.Color("240")
+	if m.confirmFocus == focusCommitMsg {
+		commitBorderColor = lipgloss.Color("12")
+	}
+	commitBox := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(commitBorderColor).
+		Padding(0, 1).
+		Width(gitPanelWidth - 8)
+	gitPanelContent.WriteString(commitBox.Render(m.commitMsgInput.View()) + "\n\n")
+
+	// Push toggle
+	pushCheckbox := "[ ]"
+	if m.shouldPush {
+		pushCheckbox = "[✓]"
+	}
+	pushStyle := lipgloss.NewStyle()
+	if m.confirmFocus == focusPushToggle {
+		pushStyle = pushStyle.Background(lipgloss.Color("240")).Bold(true)
+	}
+	gitPanelContent.WriteString(pushStyle.Render(fmt.Sprintf("%s Push to origin after commit", pushCheckbox)) + "\n\n")
+
+	// Repository info
+	if len(m.gitRepos) > 0 {
+		gitPanelContent.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(fmt.Sprintf("Repository: %d git repos detected", len(m.gitRepos))) + "\n")
+		for repo := range m.gitRepos {
+			gitPanelContent.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Render(fmt.Sprintf("✓ %s", filepath.Base(repo))) + "\n")
+		}
+	} else {
+		gitPanelContent.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render("✗ No git repositories detected") + "\n")
+	}
+
+	gitPanelContent.WriteString("\n")
+
+	// Action buttons
+	copyButtonStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Padding(0, 2).
+		Foreground(lipgloss.Color("10"))
+	cancelButtonStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Padding(0, 2)
+
+	if m.confirmFocus == focusConfirmButtons {
+		copyButtonStyle = copyButtonStyle.Background(lipgloss.Color("240")).Bold(true)
+	}
+
+	copyButton := copyButtonStyle.Render("Copy & Commit")
+	cancelButton := cancelButtonStyle.Render("Cancel")
+
+	buttons := lipgloss.JoinHorizontal(lipgloss.Center, copyButton, "  ", cancelButton)
+	gitPanelContent.WriteString(lipgloss.NewStyle().Align(lipgloss.Center).Width(gitPanelWidth-4).Render(buttons))
+
+	gitPanelBox := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		Padding(0, 1).
+		Width(gitPanelWidth - 4).
+		Height(m.height - 18)
+
+	renderedGitPanel := gitPanelBox.Render(gitPanelContent.String())
+
+	// Combine panels side by side
+	splitView := lipgloss.JoinHorizontal(lipgloss.Top, renderedFileList, renderedGitPanel)
+	b.WriteString(splitView + "\n\n")
+
+	// Footer
+	footerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	b.WriteString(footerStyle.Render("TAB: next field • ENTER: confirm • ESC: cancel • CTRL-G: toggle git"))
 
 	return b.String()
 }
@@ -886,6 +1202,64 @@ func (m *model) copySourceToTargets() error {
 	}
 
 	return nil
+}
+
+// initGitWorkflow initializes git workflow fields when entering confirm mode
+func (m *model) initGitWorkflow() {
+	// Initialize branch name input
+	m.branchNameInput = textinput.New()
+	m.branchNameInput.Placeholder = "Branch name..."
+	m.branchNameInput.CharLimit = 100
+	m.branchNameInput.Width = 50
+
+	// Generate default branch name from source filename
+	sourceName := "filesync"
+	if m.sourceFile != nil {
+		base := filepath.Base(m.sourceFile.Path)
+		ext := filepath.Ext(base)
+		sourceName = strings.TrimSuffix(base, ext)
+	}
+	m.branchNameInput.SetValue(fmt.Sprintf("chore/filesync-%s", sourceName))
+
+	// Initialize commit message textarea
+	m.commitMsgInput = textarea.New()
+	m.commitMsgInput.Placeholder = "Commit message..."
+	m.commitMsgInput.CharLimit = 1000
+	m.commitMsgInput.SetWidth(50)
+	m.commitMsgInput.SetHeight(5)
+
+	// Generate default commit message
+	targetFiles := []string{}
+	for idx := range m.selected {
+		if idx < len(m.filteredFiles) {
+			targetFiles = append(targetFiles, m.filteredFiles[idx].Path)
+		}
+	}
+
+	commitMsg := fmt.Sprintf("chore: Sync %s from source\n\nSynchronized from %s\nTarget files:\n",
+		filepath.Base(m.sourceFile.Path),
+		m.sourceFile.Path)
+	for _, target := range targetFiles {
+		commitMsg += fmt.Sprintf("- %s\n", target)
+	}
+	m.commitMsgInput.SetValue(commitMsg)
+
+	// Detect git repos for target files
+	m.gitRepos = make(map[string][]string)
+	for idx := range m.selected {
+		if idx < len(m.filteredFiles) {
+			targetPath := filepath.Join(m.workDir, m.filteredFiles[idx].Path)
+			root, err := detectGitRoot(targetPath)
+			if err == nil {
+				m.gitRepos[root] = append(m.gitRepos[root], targetPath)
+			}
+		}
+	}
+
+	// Enable git by default if we have git repos
+	m.gitEnabled = len(m.gitRepos) > 0
+	m.shouldPush = false // Safer default
+	m.confirmFocus = focusConfirmButtons
 }
 
 func truncate(s string, maxLen int) string {
