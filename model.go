@@ -1215,9 +1215,7 @@ func (m *model) initGitWorkflow() {
 	// Generate default branch name from source filename
 	sourceName := "filesync"
 	if m.sourceFile != nil {
-		base := filepath.Base(m.sourceFile.Path)
-		ext := filepath.Ext(base)
-		sourceName = strings.TrimSuffix(base, ext)
+		sourceName = normalizeBranchName(m.sourceFile.Path)
 	}
 	m.branchNameInput.SetValue(fmt.Sprintf("chore/filesync-%s", sourceName))
 
