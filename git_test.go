@@ -32,7 +32,7 @@ func TestGetGitBranch(t *testing.T) {
 
 				// Create and commit a file to establish main branch
 				testFile := filepath.Join(tmpDir, "test.txt")
-				if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+				if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
 					t.Fatalf("Failed to create test file: %v", err)
 				}
 
@@ -48,7 +48,7 @@ func TestGetGitBranch(t *testing.T) {
 			setup: func(t *testing.T) string {
 				tmpDir := t.TempDir()
 				testFile := filepath.Join(tmpDir, "test.txt")
-				if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+				if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
 					t.Fatalf("Failed to create test file: %v", err)
 				}
 				return testFile
@@ -73,7 +73,7 @@ func TestGetGitBranch(t *testing.T) {
 
 				// Create and commit a file
 				testFile := filepath.Join(tmpDir, "test.txt")
-				if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+				if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
 					t.Fatalf("Failed to create test file: %v", err)
 				}
 
@@ -105,13 +105,13 @@ func TestGetGitBranch(t *testing.T) {
 
 				// Create subdirectory
 				subDir := filepath.Join(tmpDir, "subdir", "nested")
-				if err := os.MkdirAll(subDir, 0755); err != nil {
+				if err := os.MkdirAll(subDir, 0o755); err != nil {
 					t.Fatalf("Failed to create subdir: %v", err)
 				}
 
 				// Create file in root for initial commit
 				rootFile := filepath.Join(tmpDir, "root.txt")
-				if err := os.WriteFile(rootFile, []byte("root"), 0644); err != nil {
+				if err := os.WriteFile(rootFile, []byte("root"), 0o644); err != nil {
 					t.Fatalf("Failed to create root file: %v", err)
 				}
 				exec.Command("git", "-C", tmpDir, "add", "root.txt").Run()
@@ -122,7 +122,7 @@ func TestGetGitBranch(t *testing.T) {
 
 				// Create file in subdirectory
 				testFile := filepath.Join(subDir, "test.txt")
-				if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+				if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
 					t.Fatalf("Failed to create test file: %v", err)
 				}
 
@@ -165,14 +165,14 @@ func TestGetGitBranchDetachedHead(t *testing.T) {
 
 	// Create and commit files to have history
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test1"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test1"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 	exec.Command("git", "-C", tmpDir, "add", "test.txt").Run()
 	exec.Command("git", "-C", tmpDir, "commit", "-m", "First commit").Run()
 
 	// Second commit
-	if err := os.WriteFile(testFile, []byte("test2"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test2"), 0o644); err != nil {
 		t.Fatalf("Failed to update test file: %v", err)
 	}
 	exec.Command("git", "-C", tmpDir, "add", "test.txt").Run()
@@ -209,7 +209,7 @@ func TestGetGitBranchEmptyRepo(t *testing.T) {
 	}
 
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
