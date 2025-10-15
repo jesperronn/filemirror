@@ -32,3 +32,4 @@ vendor/
 
 # Original script (not part of the Go project)
 syncfile.sh
+.claude/settings.local.json
