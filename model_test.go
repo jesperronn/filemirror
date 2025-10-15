@@ -1,6 +1,10 @@
 package filemirror
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -93,16 +97,303 @@ func TestFilterFiles(t *testing.T) {
 }
 
 func TestMinMax(t *testing.T) {
-	if min(5, 10) != 5 {
-		t.Errorf("min(5, 10) should be 5")
+	// Test minInt
+	tests := []struct {
+		name     string
+		a, b     int
+		expected int
+	}{
+		{"5 and 10", 5, 10, 5},
+		{"10 and 5", 10, 5, 5},
+		{"equal values", 7, 7, 7},
+		{"negative and positive", -5, 10, -5},
+		{"both negative", -10, -5, -10},
+		{"zero and positive", 0, 5, 0},
+		{"zero and negative", 0, -5, -5},
 	}
-	if min(10, 5) != 5 {
-		t.Errorf("min(10, 5) should be 5")
+
+	for _, tt := range tests {
+		t.Run("minInt_"+tt.name, func(t *testing.T) {
+			result := minInt(tt.a, tt.b)
+			if result != tt.expected {
+				t.Errorf("minInt(%d, %d) = %d, want %d", tt.a, tt.b, result, tt.expected)
+			}
+		})
 	}
-	if max(5, 10) != 10 {
-		t.Errorf("max(5, 10) should be 10")
+
+	// Test maxInt
+	maxTests := []struct {
+		name     string
+		a, b     int
+		expected int
+	}{
+		{"5 and 10", 5, 10, 10},
+		{"10 and 5", 10, 5, 10},
+		{"equal values", 7, 7, 7},
+		{"negative and positive", -5, 10, 10},
+		{"both negative", -10, -5, -5},
+		{"zero and positive", 0, 5, 5},
+		{"zero and negative", 0, -5, 0},
 	}
-	if max(10, 5) != 10 {
-		t.Errorf("max(10, 5) should be 10")
+
+	for _, tt := range maxTests {
+		t.Run("maxInt_"+tt.name, func(t *testing.T) {
+			result := maxInt(tt.a, tt.b)
+			if result != tt.expected {
+				t.Errorf("maxInt(%d, %d) = %d, want %d", tt.a, tt.b, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGenerateDiff(t *testing.T) {
+	m := InitialModel("", ".")
+	m.sourceFile = &FileInfo{Path: "source.txt"}
+
+	tests := []struct {
+		name           string
+		source         string
+		target         string
+		expectContains []string
+	}{
+		{
+			name:   "identical files",
+			source: "line1\nline2\nline3",
+			target: "line1\nline2\nline3",
+			expectContains: []string{
+				" line1",
+				" line2",
+				" line3",
+			},
+		},
+		{
+			name:   "completely different",
+			source: "old1\nold2",
+			target: "new1\nnew2",
+			expectContains: []string{
+				"-old1",
+				"+new1",
+				"-old2",
+				"+new2",
+			},
+		},
+		{
+			name:   "line added",
+			source: "line1\nline2",
+			target: "line1\nline2\nline3",
+			expectContains: []string{
+				" line1",
+				" line2",
+				"+line3",
+			},
+		},
+		{
+			name:   "line removed",
+			source: "line1\nline2\nline3",
+			target: "line1\nline3",
+			expectContains: []string{
+				" line1",
+				"-line2",
+				"+line3",
+			},
+		},
+		{
+			name:   "empty source",
+			source: "",
+			target: "new line",
+			expectContains: []string{
+				"+new line",
+			},
+		},
+		{
+			name:   "empty target",
+			source: "old line",
+			target: "",
+			expectContains: []string{
+				"-old line",
+			},
+		},
+		{
+			name:   "mixed changes",
+			source: "keep1\nchange\nkeep2",
+			target: "keep1\nmodified\nkeep2",
+			expectContains: []string{
+				" keep1",
+				"-change",
+				"+modified",
+				" keep2",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			diff := m.generateDiff(tt.source, tt.target)
+
+			// Check that expected patterns are in the diff
+			for _, expected := range tt.expectContains {
+				found := false
+				for _, line := range diff {
+					if line == expected {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected diff to contain %q, but it wasn't found.\nFull diff: %v", expected, diff)
+				}
+			}
+
+			// Verify header is present
+			if len(diff) > 0 && !strings.Contains(diff[0], "Source:") {
+				t.Errorf("Expected diff header with 'Source:', got: %q", diff[0])
+			}
+		})
+	}
+}
+
+func TestCopySourceToTargets(t *testing.T) {
+	// Create temporary directory for testing
+	tmpDir, err := os.MkdirTemp("", "fmr-copy-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create source file
+	sourceFile := filepath.Join(tmpDir, "source.txt")
+	sourceContent := "test content for copying"
+	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0o644); err != nil {
+		t.Fatalf("Failed to create source file: %v", err)
+	}
+
+	// Create target files
+	target1 := filepath.Join(tmpDir, "target1.txt")
+	target2 := filepath.Join(tmpDir, "target2.txt")
+	if err := os.WriteFile(target1, []byte("old content 1"), 0o644); err != nil {
+		t.Fatalf("Failed to create target1: %v", err)
+	}
+	if err := os.WriteFile(target2, []byte("old content 2"), 0o644); err != nil {
+		t.Fatalf("Failed to create target2: %v", err)
+	}
+
+	tests := []struct {
+		name        string
+		sourceFile  *FileInfo
+		selected    map[int]bool
+		files       []FileInfo
+		expectError bool
+	}{
+		{
+			name: "copy to single target",
+			sourceFile: &FileInfo{
+				Path: sourceFile,
+			},
+			selected: map[int]bool{0: true},
+			files: []FileInfo{
+				{Path: target1},
+			},
+			expectError: false,
+		},
+		{
+			name: "copy to multiple targets",
+			sourceFile: &FileInfo{
+				Path: sourceFile,
+			},
+			selected: map[int]bool{0: true, 1: true},
+			files: []FileInfo{
+				{Path: target1},
+				{Path: target2},
+			},
+			expectError: false,
+		},
+		{
+			name: "no targets selected",
+			sourceFile: &FileInfo{
+				Path: sourceFile,
+			},
+			selected:    map[int]bool{},
+			files:       []FileInfo{{Path: target1}},
+			expectError: false, // Should succeed with no operation
+		},
+		{
+			name:        "no source file",
+			sourceFile:  nil,
+			selected:    map[int]bool{0: true},
+			files:       []FileInfo{{Path: target1}},
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := InitialModel("", tmpDir)
+			m.sourceFile = tt.sourceFile
+			m.selected = tt.selected
+			m.filteredFiles = tt.files
+
+			err := m.copySourceToTargets()
+
+			if tt.expectError && err == nil {
+				t.Error("Expected error, got nil")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+
+			// Verify files were copied correctly
+			if !tt.expectError && tt.sourceFile != nil {
+				for idx, selected := range tt.selected {
+					if selected && idx < len(tt.files) {
+						content, err := os.ReadFile(tt.files[idx].Path)
+						if err != nil {
+							t.Errorf("Failed to read target file: %v", err)
+							continue
+						}
+						if string(content) != sourceContent {
+							t.Errorf("Target file content = %q, want %q", string(content), sourceContent)
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestInitGitWorkflow(t *testing.T) {
+	// Setup
+	tempDir := t.TempDir()
+	
+	// Initialize a git repo
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tempDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to initialize git repo: %v", err)
+	}
+	
+	// Create a test file
+	testFile := filepath.Join(tempDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+	
+	config := &MirrorConfig{
+		RepoPath:     tempDir,
+		TargetBranch: "test-branch",
+		Files:        []string{"test.txt"}, // Use relative path
+		WorkDir:      tempDir,
+	}
+	
+	// Set up filtered files with relative paths
+	config.filteredFiles = []string{"test.txt"}
+	
+	err := config.initGitWorkflow()
+	if err != nil {
+		t.Errorf("initGitWorkflow() error = %v", err)
+	}
+	
+	// Verify gitWorkflow was initialized
+	if config.gitWorkflow == nil {
+		t.Error("gitWorkflow should be initialized")
 	}
 }
