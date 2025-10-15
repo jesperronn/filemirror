@@ -2,21 +2,25 @@
 
 ## Git Workflow Policy
 
-**IMPORTANT**: Always work in pull requests on separate branches. Never commit directly to `main`.
+**CRITICAL RULE**: Always work on a feature branch. NEVER commit directly to `main`.
 
 ### Workflow Steps:
-1. Create a new branch for each feature/fix: `git checkout -b feature/description`
-2. Make commits on the feature branch
-3. **ALWAYS push the branch to origin**: `git push -u origin feature/description`
-4. Create a pull request on GitHub
-5. Merge via PR after CI passes
+1. **FIRST**: Check current branch with `git branch --show-current`
+2. **BEFORE ANY WORK**: Create a new branch: `git checkout -b feature/description`
+3. Make commits on the feature branch
+4. **ALWAYS push the branch to origin**: `git push -u origin feature/description`
+5. Create a pull request on GitHub
+6. Merge via PR after CI passes
 
 ### Critical Requirements:
-- **ALWAYS create commits on a new branch** (never on `main`)
+- ⚠️ **NEVER EVER commit directly to `main`** - this is the most important rule
+- **ALWAYS create a new branch BEFORE starting any work**
 - **Push the branch to origin immediately after committing**
 - This ensures the user can create a pull request on GitHub
 - Do NOT wait for the user to ask - pushing is part of the standard workflow
-- Exceptions if you consider this commit to be an amendment to the previous commit on the branch
+
+### Exceptions:
+- Only exception: If you're already on a feature branch and making amendments to the previous commit
 
 ### Branch Management Rules:
 - **ONLY checkout a new branch for NEW features/bugs/tasks**
