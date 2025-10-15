@@ -13,12 +13,39 @@ Designed for multi-repo workflows where safe, auditable propagation of canonical
 
 ## Installation
 
-### From Source
+### Option 1: Using go install (Recommended)
+
+Install directly to your `$GOPATH/bin`:
+
+```bash
+go install github.com/jesper/filemirror@latest
+```
+
+This will make `fmr` available globally in your terminal.
+
+### Option 2: From Source with Build Script
+
+```bash
+git clone https://github.com/jesper/filemirror
+cd filemirror
+bin/build --install
+```
+
+The `--install` flag builds and installs the binary to `$GOPATH/bin`.
+
+### Option 3: Manual Build
 
 ```bash
 git clone https://github.com/jesper/filemirror
 cd filemirror
 go build -o fmr .
+```
+
+Then optionally move the binary to your PATH:
+```bash
+sudo mv fmr /usr/local/bin/
+# or
+mv fmr ~/bin/  # if ~/bin is in your PATH
 ```
 
 ### Quick Start
