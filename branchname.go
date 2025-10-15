@@ -29,19 +29,22 @@ func normalizeBranchName(filename string) string {
 	// We'll allow digits initially, then remove them in a second pass if needed
 	var result strings.Builder
 	for _, r := range normalized {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+		switch {
+		case r >= 'a' && r <= 'z':
 			result.WriteRune(r)
-		} else if unicode.IsLetter(r) || unicode.IsDigit(r) {
+		case r >= '0' && r <= '9':
+			result.WriteRune(r)
+		case unicode.IsLetter(r), unicode.IsDigit(r):
 			// Unicode letters/digits -> convert to hyphen
 			result.WriteRune('-')
-		} else {
+		default:
 			// Any other character (space, dot, etc.) -> hyphen
 			result.WriteRune('-')
 		}
 	}
 
 	// Remove digits (only a-z and - allowed per requirement)
-	digitRemoved := regexp.MustCompile(`[0-9]`).ReplaceAllString(result.String(), "-")
+	digitRemoved := regexp.MustCompile(`\d`).ReplaceAllString(result.String(), "-")
 
 	// Collapse multiple consecutive hyphens to single hyphen
 	collapsed := regexp.MustCompile(`-+`).ReplaceAllString(digitRemoved, "-")

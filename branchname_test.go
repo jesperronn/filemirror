@@ -1,6 +1,9 @@
 package filemirror
 
-import "testing"
+import (
+	"runtime"
+	"testing"
+)
 
 func TestNormalizeBranchName(t *testing.T) {
 	tests := []struct {
@@ -212,6 +215,12 @@ func TestNormalizeBranchName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Skip the "windows path on unix" test on Windows, since filepath.Base
+			// handles backslashes as path separators on Windows
+			if tt.name == "windows path on unix" && runtime.GOOS == "windows" {
+				t.Skip("Skipping Unix-specific path test on Windows")
+			}
+
 			result := normalizeBranchName(tt.input)
 			if result != tt.expected {
 				t.Errorf("normalizeBranchName(%q) = %q, want %q", tt.input, result, tt.expected)
@@ -225,7 +234,7 @@ func TestNormalizeBranchName(t *testing.T) {
 			}
 
 			// Verify no leading/trailing hyphens
-			if len(result) > 0 {
+			if result != "" {
 				if result[0] == '-' || result[len(result)-1] == '-' {
 					t.Errorf("normalizeBranchName(%q) = %q has leading or trailing hyphen", tt.input, result)
 				}

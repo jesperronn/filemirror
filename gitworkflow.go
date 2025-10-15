@@ -28,33 +28,13 @@ func detectGitRoot(filePath string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-// groupFilesByRepo groups changed files by their git repository
-func groupFilesByRepo(files []string) (map[string][]string, error) {
-	repos := make(map[string][]string)
-
-	for _, file := range files {
-		root, err := detectGitRoot(file)
-		if err != nil {
-			// File not in git repo, skip
-			continue
-		}
-
-		// Store absolute path of the file
-		absPath, err := filepath.Abs(file)
-		if err != nil {
-			continue
-		}
-
-		repos[root] = append(repos[root], absPath)
-	}
-
-	return repos, nil
-}
-
 // generateWorktreeID generates a random ID for worktree paths
 func generateWorktreeID() string {
 	bytes := make([]byte, 8)
-	rand.Read(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		// Fallback to timestamp-based ID if random generation fails
+		return fmt.Sprintf("%d", os.Getpid())
+	}
 	return hex.EncodeToString(bytes)
 }
 
@@ -151,7 +131,7 @@ func copyFileToWorktree(sourceFilePath, worktreePath, repoRoot string) error {
 
 	// Ensure target directory exists
 	targetDir := filepath.Dir(targetPath)
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o750); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
@@ -161,7 +141,7 @@ func copyFileToWorktree(sourceFilePath, worktreePath, repoRoot string) error {
 		return fmt.Errorf("failed to read source: %w", err)
 	}
 
-	if err := os.WriteFile(targetPath, input, 0644); err != nil {
+	if err := os.WriteFile(targetPath, input, 0o600); err != nil {
 		return fmt.Errorf("failed to write target: %w", err)
 	}
 
@@ -170,44 +150,56 @@ func copyFileToWorktree(sourceFilePath, worktreePath, repoRoot string) error {
 
 // performGitWorkflow executes the complete git workflow for changed files
 func performGitWorkflow(repos map[string][]string, branchName, commitMessage string, shouldPush bool) ([]string, []error) {
-	var successRepos []string
+	successRepos := make([]string, 0, len(repos))
 	var errors []error
 
 	for repoPath, files := range repos {
-		// Create worktree
-		worktreePath, err := createWorktreeAndBranch(repoPath, branchName)
+		success, err := processRepo(repoPath, files, branchName, commitMessage, shouldPush)
 		if err != nil {
-			errors = append(errors, fmt.Errorf("repo %s: %w", repoPath, err))
-			continue
+			errors = append(errors, err)
 		}
-
-		// Ensure cleanup happens
-		defer cleanupWorktree(repoPath, worktreePath)
-
-		// Copy files to worktree
-		for _, file := range files {
-			if err := copyFileToWorktree(file, worktreePath, repoPath); err != nil {
-				errors = append(errors, fmt.Errorf("repo %s: %w", repoPath, err))
-				continue
-			}
+		if success {
+			successRepos = append(successRepos, repoPath)
 		}
-
-		// Commit changes
-		if err := commitChanges(worktreePath, commitMessage, files); err != nil {
-			errors = append(errors, fmt.Errorf("repo %s: %w", repoPath, err))
-			continue
-		}
-
-		// Push if requested
-		if shouldPush {
-			if err := pushBranch(worktreePath, branchName); err != nil {
-				errors = append(errors, fmt.Errorf("repo %s (push failed): %w", repoPath, err))
-				// Don't skip this repo, commit was successful
-			}
-		}
-
-		successRepos = append(successRepos, repoPath)
 	}
 
 	return successRepos, errors
+}
+
+// processRepo processes a single repository
+func processRepo(repoPath string, files []string, branchName, commitMessage string, shouldPush bool) (bool, error) {
+	// Create worktree
+	worktreePath, err := createWorktreeAndBranch(repoPath, branchName)
+	if err != nil {
+		return false, fmt.Errorf("repo %s: %w", repoPath, err)
+	}
+
+	// Ensure cleanup happens
+	defer func() {
+		if cleanupErr := cleanupWorktree(repoPath, worktreePath); cleanupErr != nil {
+			// Log cleanup error but don't fail the operation
+			fmt.Fprintf(os.Stderr, "Warning: cleanup failed for %s: %v\n", repoPath, cleanupErr)
+		}
+	}()
+
+	// Copy files to worktree
+	for _, file := range files {
+		if err := copyFileToWorktree(file, worktreePath, repoPath); err != nil {
+			return false, fmt.Errorf("repo %s: %w", repoPath, err)
+		}
+	}
+
+	// Commit changes
+	if err := commitChanges(worktreePath, commitMessage, files); err != nil {
+		return false, fmt.Errorf("repo %s: %w", repoPath, err)
+	}
+
+	// Push if requested
+	if shouldPush {
+		if err := pushBranch(worktreePath, branchName); err != nil {
+			return true, fmt.Errorf("repo %s (push failed): %w", repoPath, err)
+		}
+	}
+
+	return true, nil
 }

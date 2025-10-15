@@ -1180,7 +1180,7 @@ func (m model) viewConfirm() string {
 	cancelButton := cancelButtonStyle.Render("Cancel")
 
 	buttons := lipgloss.JoinHorizontal(lipgloss.Center, copyButton, "  ", cancelButton)
-	gitPanelContent.WriteString(lipgloss.NewStyle().Align(lipgloss.Center).Width(gitPanelWidth-4).Render(buttons))
+	gitPanelContent.WriteString(lipgloss.NewStyle().Align(lipgloss.Center).Width(gitPanelWidth - 4).Render(buttons))
 
 	gitPanelBox := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
@@ -1271,7 +1271,7 @@ func (m *model) initGitWorkflow() {
 
 	// Enable git by default if we have git repos
 	m.gitEnabled = len(m.gitRepos) > 0
-	m.shouldPush = false // Safer default
+	m.shouldPush = false             // Safer default
 	m.confirmFocus = focusCopyButton // Start on copy button
 }
 
