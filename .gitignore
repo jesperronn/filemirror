@@ -23,6 +23,8 @@ vendor/
 # Build output
 /fmr
 /fmr-*
+/filemirror
+/filemirror-*
 /dist/
 
 # IDE and editor files

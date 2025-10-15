@@ -124,16 +124,24 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           mkdir -p dist
-          BINARY_NAME=fmr-${{ matrix.goos }}-${{ matrix.goarch }}
+          # Build filemirror binary
+          FILEMIRROR_NAME=filemirror-${{ matrix.goos }}-${{ matrix.goarch }}
           if [ "${{ matrix.goos }}" = "windows" ]; then
-            BINARY_NAME="${BINARY_NAME}.exe"
+            FILEMIRROR_NAME="${FILEMIRROR_NAME}.exe"
           fi
-          go build -ldflags="-s -w" -o "dist/${BINARY_NAME}" .
+          go build -ldflags="-s -w" -o "dist/${FILEMIRROR_NAME}" ./cmd/filemirror
+          
+          # Build fmr binary
+          FMR_NAME=fmr-${{ matrix.goos }}-${{ matrix.goarch }}
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            FMR_NAME="${FMR_NAME}.exe"
+          fi
+          go build -ldflags="-s -w" -o "dist/${FMR_NAME}" ./cmd/fmr
           ls -lh dist/
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: fmr-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*
           retention-days: 7

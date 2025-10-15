@@ -1,4 +1,4 @@
-package main
+package filemirror
 
 import (
 	"fmt"
@@ -59,7 +59,7 @@ type scanCompleteMsg struct {
 	err   error
 }
 
-func initialModel(initialQuery, initialPath string) model {
+func InitialModel(initialQuery, initialPath string) model {
 	// Search input
 	searchInput := textinput.New()
 	searchInput.Placeholder = "Search pattern (e.g., *.go, config.json)..."

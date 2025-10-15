@@ -15,7 +15,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
 # Build configuration
-BINARY_NAME="fmr"
+BINARY_NAMES=("filemirror" "fmr")
 VERSION="${VERSION:-$(git describe --tags --always --dirty 2>/dev/null || echo "dev")}"
 BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 GIT_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")"
@@ -24,6 +24,7 @@ GIT_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")"
 VERBOSE=false
 CLEAN=false
 INSTALL=false
+BUILD_TARGET="" # Can be "filemirror", "fmr", or "" (both)
 TARGET_OS="${GOOS:-$(go env GOOS)}"
 TARGET_ARCH="${GOARCH:-$(go env GOARCH)}"
 
@@ -31,21 +32,24 @@ usage() {
     cat << EOF
 Usage: bin/build [OPTIONS]
 
-Build the FileMirror (fmr) binary with optimizations and metadata.
+Build the FileMirror binaries (filemirror and fmr) with optimizations and metadata.
 
 OPTIONS:
     -v, --verbose       Verbose output
     -c, --clean         Clean before building
     -i, --install       Install to \$GOPATH/bin after building
+    -b, --binary NAME   Build specific binary (filemirror or fmr), default: both
     -o, --os OS         Target OS (default: current)
     -a, --arch ARCH     Target architecture (default: current)
     -h, --help          Show this help message
 
 EXAMPLES:
-    bin/build                    # Build for current platform
-    bin/build --clean            # Clean and build
-    bin/build --install          # Build and install to \$GOPATH/bin
-    bin/build -o linux -a amd64  # Cross-compile for Linux AMD64
+    bin/build                         # Build both binaries for current platform
+    bin/build --clean                 # Clean and build both
+    bin/build --binary fmr            # Build only fmr
+    bin/build --binary filemirror     # Build only filemirror
+    bin/build --install               # Build both and install to \$GOPATH/bin
+    bin/build -o linux -a amd64       # Cross-compile both for Linux AMD64
 
 EOF
     exit 0
@@ -65,6 +69,10 @@ while [[ $# -gt 0 ]]; do
         -i|--install)
             INSTALL=true
             shift
+            ;;
+        -b|--binary)
+            BUILD_TARGET="$2"
+            shift 2
             ;;
         -o|--os)
             TARGET_OS="$2"
@@ -103,13 +111,25 @@ log_warn() {
 # Clean build artifacts
 if [ "$CLEAN" = true ]; then
     log_info "Cleaning build artifacts..."
-    rm -f "$BINARY_NAME"
+    rm -f filemirror fmr filemirror-* fmr-* *.exe
     rm -rf dist/
     log_success "Clean complete"
 fi
 
+# Determine which binaries to build
+BINARIES_TO_BUILD=()
+if [ -z "$BUILD_TARGET" ]; then
+    BINARIES_TO_BUILD=("${BINARY_NAMES[@]}")
+elif [[ " ${BINARY_NAMES[*]} " =~ " ${BUILD_TARGET} " ]]; then
+    BINARIES_TO_BUILD=("$BUILD_TARGET")
+else
+    log_error "Invalid binary target: $BUILD_TARGET"
+    echo "Valid targets: filemirror, fmr"
+    exit 1
+fi
+
 # Show build info
-log_info "Building fmr"
+log_info "Building FileMirror binaries: ${BINARIES_TO_BUILD[*]}"
 echo "  Version:      $VERSION"
 echo "  Git Commit:   $GIT_COMMIT"
 echo "  Build Time:   $BUILD_TIME"
@@ -140,63 +160,69 @@ fi
 
 # Build flags
 LDFLAGS="-s -w"
-LDFLAGS="$LDFLAGS -X main.version=$VERSION"
-LDFLAGS="$LDFLAGS -X main.buildTime=$BUILD_TIME"
-LDFLAGS="$LDFLAGS -X main.gitCommit=$GIT_COMMIT"
+LDFLAGS="$LDFLAGS -X github.com/jesperronn/filemirror.Version=$VERSION"
+LDFLAGS="$LDFLAGS -X github.com/jesperronn/filemirror.BuildTime=$BUILD_TIME"
+LDFLAGS="$LDFLAGS -X github.com/jesperronn/filemirror.GitCommit=$GIT_COMMIT"
 
-# Determine output binary name
-OUTPUT_BINARY="$BINARY_NAME"
-if [ "$TARGET_OS" != "$(go env GOOS)" ] || [ "$TARGET_ARCH" != "$(go env GOARCH)" ]; then
-    OUTPUT_BINARY="${BINARY_NAME}-${TARGET_OS}-${TARGET_ARCH}"
-fi
-if [ "$TARGET_OS" = "windows" ]; then
-    OUTPUT_BINARY="${OUTPUT_BINARY}.exe"
-fi
-
-# Build
-log_info "Building binary..."
-BUILD_CMD="go build -ldflags=\"$LDFLAGS\" -o \"$OUTPUT_BINARY\" ."
-
-if [ "$VERBOSE" = true ]; then
-    echo "  Command: $BUILD_CMD"
-fi
-
-GOOS="$TARGET_OS" GOARCH="$TARGET_ARCH" eval "$BUILD_CMD"
-
-# Check if build was successful
-if [ -f "$OUTPUT_BINARY" ]; then
-    BINARY_SIZE=$(du -h "$OUTPUT_BINARY" | cut -f1)
-    log_success "Build complete: $OUTPUT_BINARY ($BINARY_SIZE)"
-else
-    log_error "Build failed"
-    exit 1
-fi
-
-# Install if requested
-if [ "$INSTALL" = true ]; then
-    log_info "Installing to \$GOPATH/bin..."
-    GOBIN="${GOBIN:-$(go env GOPATH)/bin}"
-    mkdir -p "$GOBIN"
-    cp "$OUTPUT_BINARY" "$GOBIN/$BINARY_NAME"
-    log_success "Installed to $GOBIN/$BINARY_NAME"
-fi
-
-# Show binary info
-log_info "Binary information:"
-file "$OUTPUT_BINARY" 2>/dev/null || true
-echo ""
-
-# Verify it runs
-if [ "$TARGET_OS" = "$(go env GOOS)" ] && [ "$TARGET_ARCH" = "$(go env GOARCH)" ]; then
-    log_info "Verifying binary..."
-    if "./$OUTPUT_BINARY" --version >/dev/null 2>&1; then
-        log_success "Binary verification passed"
-        echo ""
-        "./$OUTPUT_BINARY" --version
-    else
-        log_warn "Binary verification failed (might be expected for cross-compiled binaries)"
+# Build each binary
+for BINARY_NAME in "${BINARIES_TO_BUILD[@]}"; do
+    log_info "Building $BINARY_NAME..."
+    
+    # Determine output binary name
+    OUTPUT_BINARY="$BINARY_NAME"
+    if [ "$TARGET_OS" != "$(go env GOOS)" ] || [ "$TARGET_ARCH" != "$(go env GOARCH)" ]; then
+        OUTPUT_BINARY="${BINARY_NAME}-${TARGET_OS}-${TARGET_ARCH}"
     fi
-fi
+    if [ "$TARGET_OS" = "windows" ]; then
+        OUTPUT_BINARY="${OUTPUT_BINARY}.exe"
+    fi
 
-echo ""
+    # Build
+    BUILD_CMD="go build -ldflags=\"$LDFLAGS\" -o \"$OUTPUT_BINARY\" ./cmd/$BINARY_NAME"
+
+    if [ "$VERBOSE" = true ]; then
+        echo "  Command: $BUILD_CMD"
+    fi
+
+    GOOS="$TARGET_OS" GOARCH="$TARGET_ARCH" eval "$BUILD_CMD"
+
+    # Check if build was successful
+    if [ -f "$OUTPUT_BINARY" ]; then
+        BINARY_SIZE=$(du -h "$OUTPUT_BINARY" | cut -f1)
+        log_success "Build complete: $OUTPUT_BINARY ($BINARY_SIZE)"
+    else
+        log_error "Build failed for $BINARY_NAME"
+        exit 1
+    fi
+
+    # Install if requested
+    if [ "$INSTALL" = true ]; then
+        log_info "Installing $BINARY_NAME to \$GOPATH/bin..."
+        GOBIN="${GOBIN:-$(go env GOPATH)/bin}"
+        mkdir -p "$GOBIN"
+        cp "$OUTPUT_BINARY" "$GOBIN/$BINARY_NAME"
+        log_success "Installed to $GOBIN/$BINARY_NAME"
+    fi
+
+    # Show binary info
+    if [ "$VERBOSE" = true ]; then
+        log_info "Binary information for $BINARY_NAME:"
+        file "$OUTPUT_BINARY" 2>/dev/null || true
+        echo ""
+    fi
+
+    # Verify it runs
+    if [ "$TARGET_OS" = "$(go env GOOS)" ] && [ "$TARGET_ARCH" = "$(go env GOARCH)" ]; then
+        log_info "Verifying $BINARY_NAME..."
+        if "./$OUTPUT_BINARY" --version >/dev/null 2>&1; then
+            log_success "Binary verification passed"
+            if [ "$VERBOSE" = true ]; then
+                "./$OUTPUT_BINARY" --version
+            fi
+        else
+            log_warn "Binary verification failed (might be expected for cross-compiled binaries)"
+        fi
+    fi
+    echo ""
+done
 log_success "Build completed successfully!"

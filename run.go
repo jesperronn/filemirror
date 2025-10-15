@@ -1,4 +1,4 @@
-package main
+package filemirror
 
 import (
 	"fmt"
@@ -10,12 +10,13 @@ import (
 
 // Build-time variables (set by ldflags)
 var (
-	version   = "0.1.0"
-	buildTime = "unknown"
-	gitCommit = "unknown"
+	Version   = "0.1.0"
+	BuildTime = "unknown"
+	GitCommit = "unknown"
 )
 
-func main() {
+// Run is the main entry point for the filemirror application
+func Run() {
 	var workDir string
 	var initialQuery string
 
@@ -25,13 +26,13 @@ func main() {
 		arg := args[i]
 		switch arg {
 		case "-h", "--help", "help":
-			printHelp()
+			PrintHelp()
 			return
 		case "-v", "--version", "version":
-			fmt.Printf("fmr version %s\n", version)
-			if buildTime != "unknown" || gitCommit != "unknown" {
-				fmt.Printf("  Build time: %s\n", buildTime)
-				fmt.Printf("  Git commit: %s\n", gitCommit)
+			fmt.Printf("fmr version %s\n", Version)
+			if BuildTime != "unknown" || GitCommit != "unknown" {
+				fmt.Printf("  Build time: %s\n", BuildTime)
+				fmt.Printf("  Git commit: %s\n", GitCommit)
 			}
 			return
 		case "-p", "--path":
@@ -65,7 +66,7 @@ func main() {
 	}
 
 	// Create the model with initial query and working directory
-	m := initialModel(initialQuery, workDir)
+	m := InitialModel(initialQuery, workDir)
 
 	// Start the program
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -75,7 +76,8 @@ func main() {
 	}
 }
 
-func printHelp() {
+// PrintHelp displays the help message
+func PrintHelp() {
 	help := `fmr (FileMirror) - Interactive file synchronization tool
 
 USAGE:

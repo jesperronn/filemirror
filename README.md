@@ -10,6 +10,8 @@ FileMirror is a repo-aware CLI for mirroring a canonical file across multiple di
 
 Features: interactive TUI, diff preview, per-repo worktree creation to stage & commit changes, atomic writes, and dry-run mode.
 
+> **Note:** FileMirror provides two identical binaries: `filemirror` and `fmr`. Use whichever you prefer - `fmr` is just a shorter alias.
+
 **Quickstart:**
 ```bash
 fmr --path ~/projects "config.yaml"
@@ -24,10 +26,15 @@ Designed for multi-repo workflows where safe, auditable propagation of canonical
 Install directly to your `$GOPATH/bin`:
 
 ```bash
-go install github.com/jesperronn/filemirror@latest
+# Install the shorter fmr binary (recommended)
+go install github.com/jesperronn/filemirror/cmd/fmr@latest
+
+# Or install the full filemirror binary
+go install github.com/jesperronn/filemirror/cmd/filemirror@latest
 ```
 
-This will make `fmr` available globally in your terminal.
+Both binaries are functionally identical - `fmr` is just a shorter alias for `filemirror`.
+This will make the binary available globally in your terminal.
 
 ### Option 2: From Source with Build Script
 
@@ -37,14 +44,26 @@ cd filemirror
 bin/build --install
 ```
 
-The `--install` flag builds and installs the binary to `$GOPATH/bin`.
+The `--install` flag builds and installs both binaries to `$GOPATH/bin`.
+You can also build a specific binary:
+
+```bash
+bin/build --binary fmr --install     # Build only fmr
+bin/build --binary filemirror --install  # Build only filemirror
+```
 
 ### Option 3: Manual Build
 
 ```bash
 git clone https://github.com/jesperronn/filemirror
 cd filemirror
-go build -o fmr .
+
+# Build both binaries
+go build -o fmr ./cmd/fmr
+go build -o filemirror ./cmd/filemirror
+
+# Or build just one
+go build -o fmr ./cmd/fmr
 ```
 
 Then optionally move the binary to your PATH:
@@ -57,7 +76,7 @@ mv fmr ~/bin/  # if ~/bin is in your PATH
 ### Quick Start
 
 ```bash
-# Show help
+# Show help (works with either binary)
 ./fmr --help
 
 # Search all files in current directory

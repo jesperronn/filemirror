@@ -1,4 +1,4 @@
-package main
+package filemirror
 
 import (
 	"testing"
@@ -55,7 +55,7 @@ func TestTruncate(t *testing.T) {
 }
 
 func TestFilterFiles(t *testing.T) {
-	m := initialModel("", ".")
+	m := InitialModel("", ".")
 	m.files = []FileInfo{
 		{Path: "main.go"},
 		{Path: "model.go"},
