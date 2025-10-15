@@ -461,3 +461,207 @@ func TestMatchesFilePattern(t *testing.T) {
 		})
 	}
 }
+
+func TestInitGitWorkflow(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create source file
+	sourceFile := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(sourceFile, []byte("key: value"), 0o600); err != nil {
+		t.Fatalf("Failed to create source file: %v", err)
+	}
+
+	// Create target file
+	targetFile := filepath.Join(tmpDir, "target-config.yaml")
+	if err := os.WriteFile(targetFile, []byte("old: value"), 0o600); err != nil {
+		t.Fatalf("Failed to create target file: %v", err)
+	}
+
+	tests := []struct {
+		name             string
+		sourceFile       *FileInfo
+		filteredFiles    []FileInfo
+		selected         map[int]bool
+		expectGitEnabled bool
+	}{
+		{
+			name: "basic initialization with source file",
+			sourceFile: &FileInfo{
+				Path: sourceFile,
+			},
+			filteredFiles: []FileInfo{
+				{Path: targetFile},
+			},
+			selected: map[int]bool{
+				0: true,
+			},
+			expectGitEnabled: false, // No git repo, so disabled
+		},
+		{
+			name: "initialization with multiple targets",
+			sourceFile: &FileInfo{
+				Path: "my-config-file.json",
+			},
+			filteredFiles: []FileInfo{
+				{Path: "target1.json"},
+				{Path: "target2.json"},
+			},
+			selected: map[int]bool{
+				0: true,
+				1: true,
+			},
+			expectGitEnabled: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := InitialModel("", tmpDir)
+			m.sourceFile = tt.sourceFile
+			m.filteredFiles = tt.filteredFiles
+			m.selected = tt.selected
+
+			m.initGitWorkflow()
+
+			// Verify branch name was generated
+			branchName := m.branchNameInput.Value()
+			if branchName == "" {
+				t.Error("Expected non-empty branch name")
+			}
+			if !strings.HasPrefix(branchName, "chore/filesync-") {
+				t.Errorf("Expected branch name to start with 'chore/filesync-', got: %s", branchName)
+			}
+
+			// Verify commit message was generated
+			commitMsg := m.commitMsgInput.Value()
+			if commitMsg == "" {
+				t.Error("Expected non-empty commit message")
+			}
+			if !strings.Contains(commitMsg, "chore:") {
+				t.Errorf("Expected commit message to contain 'chore:', got: %s", commitMsg)
+			}
+
+			// Verify git enabled matches expectation
+			if m.gitEnabled != tt.expectGitEnabled {
+				t.Errorf("Expected gitEnabled=%v, got %v", tt.expectGitEnabled, m.gitEnabled)
+			}
+
+			// Verify initial focus is on copy button
+			if m.confirmFocus != focusCopyButton {
+				t.Errorf("Expected focus on copy button, got focus=%v", m.confirmFocus)
+			}
+
+			// Verify shouldPush is false by default
+			if m.shouldPush {
+				t.Error("Expected shouldPush to be false by default")
+			}
+		})
+	}
+}
+
+func TestResetCursorIfNeeded(t *testing.T) {
+	tests := []struct {
+		name           string
+		cursor         int
+		filteredFiles  []FileInfo
+		expectedCursor int
+	}{
+		{
+			name:   "cursor within bounds",
+			cursor: 2,
+			filteredFiles: []FileInfo{
+				{Path: "file1.go"},
+				{Path: "file2.go"},
+				{Path: "file3.go"},
+				{Path: "file4.go"},
+			},
+			expectedCursor: 2,
+		},
+		{
+			name:   "cursor out of bounds",
+			cursor: 10,
+			filteredFiles: []FileInfo{
+				{Path: "file1.go"},
+				{Path: "file2.go"},
+			},
+			expectedCursor: 1, // Should be len-1
+		},
+		{
+			name:           "empty file list",
+			cursor:         5,
+			filteredFiles:  []FileInfo{},
+			expectedCursor: 0,
+		},
+		{
+			name:   "cursor at boundary",
+			cursor: 3,
+			filteredFiles: []FileInfo{
+				{Path: "file1.go"},
+				{Path: "file2.go"},
+				{Path: "file3.go"},
+			},
+			expectedCursor: 2, // Should be len-1
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := InitialModel("", ".")
+			m.cursor = tt.cursor
+			m.filteredFiles = tt.filteredFiles
+
+			m.resetCursorIfNeeded()
+
+			if m.cursor != tt.expectedCursor {
+				t.Errorf("Expected cursor=%d, got %d", tt.expectedCursor, m.cursor)
+			}
+		})
+	}
+}
+
+func TestAdjustViewport(t *testing.T) {
+	tests := []struct {
+		name             string
+		cursor           int
+		viewport         int
+		height           int
+		expectedViewport int
+	}{
+		{
+			name:             "cursor below viewport",
+			cursor:           5,
+			viewport:         10,
+			height:           30,
+			expectedViewport: 5,
+		},
+		{
+			name:             "cursor above viewport",
+			cursor:           25,
+			viewport:         0,
+			height:           20,
+			expectedViewport: 16, // cursor - maxVisible + 1, where maxVisible = height - 10 = 10
+		},
+		{
+			name:             "cursor within viewport",
+			cursor:           5,
+			viewport:         0,
+			height:           30,
+			expectedViewport: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := InitialModel("", ".")
+			m.cursor = tt.cursor
+			m.viewport = tt.viewport
+			m.height = tt.height
+
+			m.adjustViewport()
+
+			if m.viewport != tt.expectedViewport {
+				t.Errorf("Expected viewport=%d, got %d", tt.expectedViewport, m.viewport)
+			}
+		})
+	}
+}
