@@ -1,4 +1,4 @@
-# multiedit
+# multiedit -- mirror files across multiple locations and repositories
 
 A Go CLI tool for interactively finding, selecting, and synchronizing file content across multiple files in your project.
 

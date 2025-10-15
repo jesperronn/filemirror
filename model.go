@@ -29,7 +29,8 @@ const (
 type previewMode int
 
 const (
-	previewPlain previewMode = iota
+	previewHidden previewMode = iota
+	previewPlain
 	previewDiff
 )
 
@@ -48,9 +49,8 @@ type model struct {
 	viewport      int // for scrolling
 	focus         inputFocus
 	workDir       string      // current working directory
-	showPreview   bool        // whether to show file preview panel
 	previewScroll int         // scroll position in preview
-	previewMode   previewMode // plain or diff mode
+	previewMode   previewMode // hidden, plain, or diff mode
 	showHelp      bool        // whether to show help overlay
 }
 
@@ -97,9 +97,8 @@ func initialModel(initialQuery string, initialPath string) model {
 		viewport:      0,
 		focus:         focusList, // Start with file list focused
 		workDir:       workDir,
-		showPreview:   true, // Show preview by default
 		previewScroll: 0,
-		previewMode:   previewPlain, // Start with plain view
+		previewMode:   previewPlain, // Start with plain view (can be changed to previewHidden)
 	}
 
 	return m
@@ -153,6 +152,11 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "?":
 			m.showHelp = !m.showHelp
+			return m, nil
+		case "ctrl+p":
+			// Cycle through preview modes (even when in input fields)
+			m.previewMode = (m.previewMode + 1) % 3 // Cycle: hidden -> plain -> diff -> hidden
+			m.previewScroll = 0
 			return m, nil
 		case "tab":
 			// Handle tab to switch focus
@@ -261,34 +265,22 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case "p":
-		// Toggle preview panel
-		m.showPreview = !m.showPreview
+	case "p", "ctrl+p":
+		// Cycle through preview modes (works in any focus mode)
+		m.previewMode = (m.previewMode + 1) % 3 // Cycle: hidden -> plain -> diff -> hidden
 		m.previewScroll = 0
-		return m, nil
-
-	case "d":
-		// Toggle diff mode (only when source is selected)
-		if m.sourceFile != nil {
-			if m.previewMode == previewPlain {
-				m.previewMode = previewDiff
-			} else {
-				m.previewMode = previewPlain
-			}
-			m.previewScroll = 0
-		}
 		return m, nil
 
 	case "pagedown", "ctrl+d":
 		// Scroll preview down
-		if m.showPreview {
+		if m.previewMode != previewHidden {
 			m.previewScroll += 10
 		}
 		return m, nil
 
 	case "pageup", "ctrl+u":
 		// Scroll preview up
-		if m.showPreview {
+		if m.previewMode != previewHidden {
 			m.previewScroll -= 10
 			if m.previewScroll < 0 {
 				m.previewScroll = 0
@@ -476,15 +468,17 @@ func (m model) viewSelect() string {
 
 	// Context-sensitive keyboard hints
 	// Use adaptive color: dark on light backgrounds, light on dark backgrounds
+	// Always visible regardless of preview state
 	instructStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#666666", Dark: "#999999"})
+		Foreground(lipgloss.AdaptiveColor{Light: "#666666", Dark: "#999999"}).
+		Width(m.width)
 	var hints string
 
 	switch m.focus {
 	case focusPath:
 		hints = "PATH: Type to edit • CTRL-R: reload • TAB: next • ?: help • q: quit"
 	case focusSearch:
-		hints = "SEARCH: Type pattern (*.go, config) • TAB: next • Shift+TAB: prev • ?: help • q: quit"
+		hints = "SEARCH: Type pattern (*.go, config) • CTRL-P/p: cycle preview • TAB: next • Shift+TAB: prev • ?: help • q: quit"
 	case focusList:
 		var fileHints []string
 		fileHints = append(fileHints, "↑/↓ or k/j: navigate")
@@ -493,18 +487,16 @@ func (m model) viewSelect() string {
 		if m.sourceFile != nil && len(m.selected) > 0 {
 			fileHints = append(fileHints, "ENTER: confirm sync")
 		}
-		if m.showPreview {
-			fileHints = append(fileHints, "p: hide preview")
-			if m.sourceFile != nil {
-				if m.previewMode == previewPlain {
-					fileHints = append(fileHints, "d: show diff")
-				} else {
-					fileHints = append(fileHints, "d: plain view")
-				}
-			}
+		// Show preview mode hint
+		previewModeStr := map[previewMode]string{
+			previewHidden: "hidden→plain",
+			previewPlain:  "plain→diff",
+			previewDiff:   "diff→hidden",
+		}[m.previewMode]
+		fileHints = append(fileHints, fmt.Sprintf("p/CTRL-P: %s", previewModeStr))
+
+		if m.previewMode != previewHidden {
 			fileHints = append(fileHints, "PgUp/PgDn: scroll")
-		} else {
-			fileHints = append(fileHints, "p: show preview")
 		}
 		fileHints = append(fileHints, "TAB: next")
 		fileHints = append(fileHints, "?: help")
@@ -552,11 +544,11 @@ func (m model) viewSelect() string {
 		b.WriteString(sourceStyle.Render(fmt.Sprintf("Source: %s", m.sourceFile.Path)) + "\n\n")
 	}
 
-	// Determine layout based on preview setting
+	// Determine layout based on preview mode
 	var fileListWidth int
 	var previewContent string
 
-	if m.showPreview {
+	if m.previewMode != previewHidden {
 		// Split screen: 50% file list, 50% preview
 		fileListWidth = m.width / 2
 		previewContent = m.renderPreview()
@@ -646,7 +638,7 @@ func (m model) viewSelect() string {
 
 	// If preview is enabled, combine file list and preview side by side
 	var bottomSection string
-	if m.showPreview {
+	if m.previewMode != previewHidden {
 		bottomSection = lipgloss.JoinHorizontal(lipgloss.Top, renderedFileList, previewContent)
 	} else {
 		bottomSection = renderedFileList
@@ -938,8 +930,7 @@ FILE LIST
   ENTER           Proceed to confirmation (requires source + targets)
 
 PREVIEW PANEL
-  p               Toggle preview panel on/off
-  d               Toggle diff mode (when source is selected)
+  p / CTRL-P      Cycle preview modes: hidden → plain → diff → hidden
   PgUp / PgDn     Scroll preview up/down
   CTRL-U / CTRL-D Scroll preview up/down
 

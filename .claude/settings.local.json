@@ -1,20 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git init:*)",
-      "Bash(git add:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: Add project README and Go .gitignore\n\nAdd comprehensive README describing the multiedit CLI tool requirements\nand functionality based on the syncfile.sh script. The tool will provide\ninteractive file synchronization capabilities with fuzzy finding and\nmulti-file target support.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(go get:*)",
+      "Bash(bin/test:*)",
+      "Bash(bin/lint:*)",
       "Bash(go build:*)",
-      "Bash(./multiedit:*)",
-      "Bash(go test -v ./...)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nAdd complete multiedit implementation\n\nImplement interactive file synchronization tool with the following features:\n- File scanner with pattern matching and directory exclusion\n- Interactive TUI using bubbletea for file selection\n- Source/target file selection with keyboard shortcuts\n- Git branch detection for each file\n- Safe atomic file copying with permission preservation\n- Comprehensive test suite for all core functionality\n\nKey components:\n- main.go: Entry point and program initialization\n- model.go: Bubbletea model with UI and state management\n- scanner.go: File discovery with filtering and sorting\n- git.go: Git repository and branch detection\n- fileops.go: Safe file copying operations\n- *_test.go: Test suite covering all functionality\n\nAll tests passing. Binary builds successfully.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(go test -v -run TestPath)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nAdd --path flag to work in different directories\n\nAdd new command-line option:\n- --path, -p: Specify working directory for file operations\n- Supports both absolute and relative paths\n- Changes to directory before scanning files\n\nFeatures:\n- Allows searching files in any directory without cd\n- Path validation with clear error messages\n- Works with all existing search patterns\n- Paths are resolved to absolute paths before use\n\nExamples:\n- multiedit --path ~/projects \"*.go\"\n- multiedit -p /tmp config.json\n- multiedit --path ../backend\n\nTests added:\n- TestPathFlagChangesDirectory: Verifies directory change\n- TestPathFlagWithRelativePath: Tests relative path resolution\n- TestInvalidPathError: Ensures proper error handling\n\nUpdated documentation:\n- Usage syntax now includes OPTIONS\n- Added Options section with --path details\n- Updated Quick Start with path examples\n- Added multiple path usage examples\n\nAll tests passing.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(go test:*)",
-      "Bash(chmod:*)",
-      "Bash(bin/build:*)",
-      "Bash(git commit:*)"
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

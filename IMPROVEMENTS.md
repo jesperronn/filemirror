@@ -4,21 +4,9 @@ This document tracks known bugs, planned improvements, and feature ideas for the
 
 ## Known Bugs
 
-
 ### High Priority
 
-1. keyboard hints only show when preview is hidden. 
-
-2. toggle preview key (p) is ok, but also support ctrl+p  so that it works when focus is in search
-
-
-3. preview key should toggle between states:
-
-- hidden,
-- show plain
-- diff with "source file"
-- syntax highlight (if possible)
-
+None currently
 
 ### Medium Priority
 
@@ -210,6 +198,9 @@ This document tracks known bugs, planned improvements, and feature ideas for the
 ### Recently Completed ✓
 - [x] Bug #1: Pattern matching for glob patterns (2025-10-14)
 - [x] Bug #2: File preview panel (2025-10-14)
+- [x] Bug #3: Keyboard hints visibility (2025-10-15)
+- [x] Bug #4: CTRL+P support for preview toggle (2025-10-15)
+- [x] Bug #5: Multi-state preview toggle - hidden/plain/diff cycling (2025-10-15)
 
 ### Must Fix (P0)
 - None currently
