@@ -1,0 +1,77 @@
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck      # Check for unchecked errors
+    - gosimple      # Simplify code
+    - govet         # Standard Go vet
+    - ineffassign   # Detect ineffectual assignments
+    - staticcheck   # Advanced static analysis
+    - unused        # Check for unused code
+    - gofmt         # Check formatting
+    - goimports     # Check imports
+    - misspell      # Check for misspelled words
+    - revive        # Drop-in replacement for golint
+    - typecheck     # Type-check code
+    - unconvert     # Remove unnecessary conversions
+    - unparam       # Check for unused function parameters
+    - gosec         # Security checks
+    - gocritic      # Opinionated Go linter
+    - prealloc      # Find slice declarations that could be preallocated
+
+linters-settings:
+  errcheck:
+    check-blank: true
+    check-type-assertions: true
+
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment # Micro-optimization that doesn't justify code churn
+      - shadow # Common pattern in Go, not worth the noise
+
+  revive:
+    confidence: 0.8
+
+  gosec:
+    excludes:
+      - G104 # Audit errors not checked - covered by errcheck
+      - G304 # File inclusion via variable - expected for file sync tool
+      - G204 # Subprocess launched with variable - expected for git commands
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - hugeParam # model struct is intentionally passed by value per bubbletea patterns
+
+issues:
+  exclude-use-default: false
+  max-same-issues: 0
+
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+        - unparam
+
+    # Allow ignoring errors for cleanup operations
+    - text: "Error return value of `.*\\.Close` is not checked"
+      linters:
+        - errcheck
+    - text: "Error return value of `os.Remove` is not checked"
+      linters:
+        - errcheck
+
+output:
+  formats:
+    - format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
