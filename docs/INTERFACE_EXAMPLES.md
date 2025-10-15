@@ -155,6 +155,59 @@ This document shows visual examples of the current interface and the proposed gi
 - **Action buttons**: "Copy & Commit" performs both operations, "Cancel" returns to selection
 - **Quick toggle**: CTRL-G to quickly enable/disable git from any field
 
+### Confirmation Screen with Git Workflow DISABLED
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ FileMirror - Confirm Copy & Git Workflow                                           │
+│                                                                                     │
+│ FILE LIST: Review • GIT WORKFLOW: TAB to navigate • ENTER: copy & commit •         │
+│ CTRL-G: toggle git • ESC: cancel • q: quit                                         │
+│                                                                                     │
+│ ╭─────────────────────────────────────────────────────────────────────────────────╮ │
+│ │ PATH: /Users/jesper/src/filemirror                                              │ │
+│ ╰─────────────────────────────────────────────────────────────────────────────────╯ │
+│ ╭─────────────────────────────────────────────────────────────────────────────────╮ │
+│ │ SEARCH: *.go                                                                    │ │
+│ ╰─────────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                     │
+│ Source: model.go                                                                    │
+│                                                                                     │
+│ ╭───────────────────────────╮│ Git Workflow Configuration ──────────────────────┐ │
+│ │ FILES TO SYNC            ││                                                   │ │
+│ │                          ││ [ ] Create git commit                             │ │
+│ │ Source:                  ││                                                   │ │
+│ │ ▶ model.go               ││                                                   │ │
+│ │   12.5 KB                ││                                                   │ │
+│ │                          ││                                                   │ │
+│ │ Targets (2):             ││                                                   │ │
+│ │ → scanner.go             ││                                                   │ │
+│ │   3.2 KB                 ││                                                   │ │
+│ │ → git.go                 ││                                                   │ │
+│ │   2.1 KB                 ││                                                   │ │
+│ │                          ││                                                   │ │
+│ │                          ││                                                   │ │
+│ │                          ││                                                   │ │
+│ │                          ││                                                   │ │
+│ │                          ││                                                   │ │
+│ │                          ││        ┌──────────────┐  ┌──────────┐            │ │
+│ │                          ││        │ Copy & Commit│  │  Cancel  │            │ │
+│ ╰───────────────────────────╯│        └──────────────┘  └──────────┘            │ │
+│                              │                                                   │ │
+│                              └───────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│ TAB: next field • ENTER: confirm • ESC: cancel • CTRL-G: toggle git                │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Features:**
+- **Minimal UI when git disabled**: Only the "Create git commit" checkbox is shown
+- **All git fields hidden**: Branch name, commit message, push toggle, and repository info are completely hidden
+- **Simplified navigation**: TAB cycles between Copy Button → Cancel Button → Copy Button (skips hidden fields)
+- **Clear intent**: Interface makes it obvious that only file copy will be performed
+- **Easy to re-enable**: Just check the checkbox or press CTRL-G to show git fields again
+- **Button text unchanged**: "Copy & Commit" button remains the same for consistency
+
 ### During Commit Execution
 
 ```
@@ -269,7 +322,9 @@ modeSelect → modeConfirm (with git fields) → [COPY & COMMIT] → quit with s
 - **Preview**: Toggleable in modeSelect (hidden in modeConfirm to make room for git fields)
 - **After confirmation**: Copy and optional git commit in single operation
 - **Git integration**: Full support for multi-repo commits
-  - Toggleable via checkbox (default: ON)
+  - Toggleable via checkbox (default: ON based on git repo detection)
+  - **Conditional field visibility**: Git fields (branch name, commit message, push toggle, repo info) are completely hidden when checkbox is unchecked
+  - **Smart navigation**: TAB/Shift+TAB automatically skip hidden fields
   - Automatic worktree creation
   - Branch creation in target repos
   - Commit with custom message
@@ -280,6 +335,8 @@ modeSelect → modeConfirm (with git fields) → [COPY & COMMIT] → quit with s
   - Faster workflow (no mode transition)
   - Better context (see files while writing commit message)
   - Easy to disable git (just toggle checkbox)
+  - **Clean UI when git disabled**: Interface becomes minimal showing only the checkbox, making copy-only mode obvious
+  - **Seamless toggle**: Can enable/disable git workflow without leaving confirmation screen
 
 ## Design Principles
 
