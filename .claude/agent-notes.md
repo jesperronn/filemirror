@@ -1,5 +1,23 @@
 # Agent Notes
 
+## Git Workflow Policy
+
+**IMPORTANT**: Always work in pull requests on separate branches. Never commit directly to `main`.
+
+### Workflow Steps:
+1. Create a new branch for each feature/fix: `git checkout -b feature/description`
+2. Make commits on the feature branch
+3. Push the branch to origin: `git push -u origin feature/description`
+4. Create a pull request on GitHub
+5. Merge via PR after CI passes
+
+### Branch Naming Convention:
+- `feature/*` - New features
+- `fix/*` - Bug fixes
+- `docs/*` - Documentation changes
+- `refactor/*` - Code refactoring
+- `ci/*` - CI/CD changes
+
 ## Git Commit Policy
 
 **IMPORTANT**: All commits must be GPG signed.
