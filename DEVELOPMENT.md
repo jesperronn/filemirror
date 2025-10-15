@@ -23,7 +23,8 @@ This document contains best practices and guidelines for developing FileMirror (
 - Every new function should have corresponding tests
 - Update existing tests when changing behavior
 - Aim for high test coverage on critical paths
-- Run `bin/test` or `go test ./...` before committing
+- Run `bin/test` and `bin/lint` before committing
+- since tests run in CI (both unix and windows), ensure tests asserting filenames or paths work cross-platform
 
 #### Documentation Requirements
 - **Always keep documentation updated**
