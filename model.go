@@ -522,7 +522,12 @@ func (m *model) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Cycle focus backward
 		switch m.confirmFocus {
 		case focusCopyButton:
-			m.confirmFocus = focusPushToggle
+			if m.gitEnabled {
+				m.confirmFocus = focusPushToggle
+			} else {
+				// When git disabled, cycle back to cancel button
+				m.confirmFocus = focusCancelButton
+			}
 		case focusCancelButton:
 			m.confirmFocus = focusCopyButton
 		case focusGitEnabled:
@@ -1101,61 +1106,64 @@ func (m model) viewConfirm() string {
 	}
 	gitPanelContent.WriteString(gitEnabledStyle.Render(fmt.Sprintf("%s Create git commit", gitCheckbox)) + "\n\n")
 
-	// Branch name
-	branchLabelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
-	if m.confirmFocus == focusBranchName {
-		branchLabelStyle = branchLabelStyle.Bold(true)
-	}
-	gitPanelContent.WriteString(branchLabelStyle.Render("Branch Name:") + "\n")
-
-	branchBorderColor := lipgloss.Color("240")
-	if m.confirmFocus == focusBranchName {
-		branchBorderColor = lipgloss.Color("12")
-	}
-	branchBox := lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(branchBorderColor).
-		Padding(0, 1).
-		Width(gitPanelWidth - 8)
-	gitPanelContent.WriteString(branchBox.Render(m.branchNameInput.View()) + "\n\n")
-
-	// Commit message
-	commitLabelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
-	if m.confirmFocus == focusCommitMsg {
-		commitLabelStyle = commitLabelStyle.Bold(true)
-	}
-	gitPanelContent.WriteString(commitLabelStyle.Render("Commit Message:") + "\n")
-
-	commitBorderColor := lipgloss.Color("240")
-	if m.confirmFocus == focusCommitMsg {
-		commitBorderColor = lipgloss.Color("12")
-	}
-	commitBox := lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(commitBorderColor).
-		Padding(0, 1).
-		Width(gitPanelWidth - 8)
-	gitPanelContent.WriteString(commitBox.Render(m.commitMsgInput.View()) + "\n\n")
-
-	// Push toggle
-	pushCheckbox := "[ ]"
-	if m.shouldPush {
-		pushCheckbox = "[✓]"
-	}
-	pushStyle := lipgloss.NewStyle()
-	if m.confirmFocus == focusPushToggle {
-		pushStyle = pushStyle.Background(lipgloss.Color("240")).Bold(true)
-	}
-	gitPanelContent.WriteString(pushStyle.Render(fmt.Sprintf("%s Push to origin after commit", pushCheckbox)) + "\n\n")
-
-	// Repository info
-	if len(m.gitRepos) > 0 {
-		gitPanelContent.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(fmt.Sprintf("Repository: %d git repos detected", len(m.gitRepos))) + "\n")
-		for repo := range m.gitRepos {
-			gitPanelContent.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Render(fmt.Sprintf("✓ %s", filepath.Base(repo))) + "\n")
+	// Only show git fields if git is enabled
+	if m.gitEnabled {
+		// Branch name
+		branchLabelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
+		if m.confirmFocus == focusBranchName {
+			branchLabelStyle = branchLabelStyle.Bold(true)
 		}
-	} else {
-		gitPanelContent.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render("✗ No git repositories detected") + "\n")
+		gitPanelContent.WriteString(branchLabelStyle.Render("Branch Name:") + "\n")
+
+		branchBorderColor := lipgloss.Color("240")
+		if m.confirmFocus == focusBranchName {
+			branchBorderColor = lipgloss.Color("12")
+		}
+		branchBox := lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(branchBorderColor).
+			Padding(0, 1).
+			Width(gitPanelWidth - 8)
+		gitPanelContent.WriteString(branchBox.Render(m.branchNameInput.View()) + "\n\n")
+
+		// Commit message
+		commitLabelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
+		if m.confirmFocus == focusCommitMsg {
+			commitLabelStyle = commitLabelStyle.Bold(true)
+		}
+		gitPanelContent.WriteString(commitLabelStyle.Render("Commit Message:") + "\n")
+
+		commitBorderColor := lipgloss.Color("240")
+		if m.confirmFocus == focusCommitMsg {
+			commitBorderColor = lipgloss.Color("12")
+		}
+		commitBox := lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(commitBorderColor).
+			Padding(0, 1).
+			Width(gitPanelWidth - 8)
+		gitPanelContent.WriteString(commitBox.Render(m.commitMsgInput.View()) + "\n\n")
+
+		// Push toggle
+		pushCheckbox := "[ ]"
+		if m.shouldPush {
+			pushCheckbox = "[✓]"
+		}
+		pushStyle := lipgloss.NewStyle()
+		if m.confirmFocus == focusPushToggle {
+			pushStyle = pushStyle.Background(lipgloss.Color("240")).Bold(true)
+		}
+		gitPanelContent.WriteString(pushStyle.Render(fmt.Sprintf("%s Push to origin after commit", pushCheckbox)) + "\n\n")
+
+		// Repository info
+		if len(m.gitRepos) > 0 {
+			gitPanelContent.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(fmt.Sprintf("Repository: %d git repos detected", len(m.gitRepos))) + "\n")
+			for repo := range m.gitRepos {
+				gitPanelContent.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Render(fmt.Sprintf("✓ %s", filepath.Base(repo))) + "\n")
+			}
+		} else {
+			gitPanelContent.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render("✗ No git repositories detected") + "\n")
+		}
 	}
 
 	gitPanelContent.WriteString("\n")
