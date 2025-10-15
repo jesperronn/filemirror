@@ -7,9 +7,22 @@
 ### Workflow Steps:
 1. Create a new branch for each feature/fix: `git checkout -b feature/description`
 2. Make commits on the feature branch
-3. Push the branch to origin: `git push -u origin feature/description`
+3. **ALWAYS push the branch to origin**: `git push -u origin feature/description`
 4. Create a pull request on GitHub
 5. Merge via PR after CI passes
+
+### Critical Requirements:
+- **ALWAYS create commits on a new branch** (never on `main`)
+- **ALWAYS push the branch to origin immediately after committing**
+- This ensures the user can create a pull request on GitHub
+- Do NOT wait for the user to ask - pushing is part of the standard workflow
+
+### Branch Management Rules:
+- **ONLY checkout a new branch for NEW features/bugs/tasks**
+- **STAY on the current branch when fixing/improving existing work**
+- If already working on a branch (e.g., `feature/ci`), continue on that branch
+- Do NOT create new branches for related fixes - add commits to the existing branch
+- Check current branch with `git branch --show-current` before creating new branches
 
 ### Branch Naming Convention:
 - `feature/*` - New features
@@ -38,6 +51,10 @@ All commits should include:
 
    Co-Authored-By: Claude <noreply@anthropic.com>
    ```
+
+### After Committing:
+**ALWAYS run `git push` immediately after committing.**
+This is a mandatory step to enable the user to create a pull request on GitHub.
 
 ## Repository Information
 
