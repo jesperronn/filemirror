@@ -8,7 +8,7 @@ import (
 
 func TestCopyFile(t *testing.T) {
 	// Create a temporary directory for testing
-	tmpDir, err := os.MkdirTemp("", "multiedit-test-*")
+	tmpDir, err := os.MkdirTemp("", "fmr-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestCopyFile(t *testing.T) {
 }
 
 func TestCopyFileNonExistentSource(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "multiedit-test-*")
+	tmpDir, err := os.MkdirTemp("", "fmr-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestCopyFileNonExistentSource(t *testing.T) {
 }
 
 func TestCopyFilePreservesPermissions(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "multiedit-test-*")
+	tmpDir, err := os.MkdirTemp("", "fmr-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

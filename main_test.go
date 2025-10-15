@@ -8,7 +8,7 @@ import (
 
 func TestPathFlagChangesDirectory(t *testing.T) {
 	// Create a temporary directory structure
-	tmpDir, err := os.MkdirTemp("", "multiedit-path-test-*")
+	tmpDir, err := os.MkdirTemp("", "fmr-path-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestPathFlagChangesDirectory(t *testing.T) {
 
 func TestPathFlagWithRelativePath(t *testing.T) {
 	// Create temp directory
-	tmpDir, err := os.MkdirTemp("", "multiedit-rel-test-*")
+	tmpDir, err := os.MkdirTemp("", "fmr-rel-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

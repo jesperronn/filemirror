@@ -464,7 +464,7 @@ func (m model) viewSelect() string {
 
 	// Header
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))
-	b.WriteString(headerStyle.Render("MultiEdit - File Synchronization Tool") + "\n\n")
+	b.WriteString(headerStyle.Render("FileMirror - File Synchronization Tool") + "\n\n")
 
 	// Context-sensitive keyboard hints
 	// Use adaptive color: dark on light backgrounds, light on dark backgrounds
@@ -976,7 +976,7 @@ Press ESC or ? to close this help`
 
 	// Build modal content
 	var modalContent strings.Builder
-	modalContent.WriteString(titleStyle.Render("MULTIEDIT HELP") + "\n\n")
+	modalContent.WriteString(titleStyle.Render("FILEMIRROR HELP") + "\n\n")
 	modalContent.WriteString(contentStyle.Render(helpContent))
 
 	modal := modalStyle.Render(modalContent.String())

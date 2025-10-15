@@ -28,7 +28,7 @@ func main() {
 			printHelp()
 			return
 		case "-v", "--version", "version":
-			fmt.Printf("multiedit version %s\n", version)
+			fmt.Printf("fmr version %s\n", version)
 			if buildTime != "unknown" || gitCommit != "unknown" {
 				fmt.Printf("  Build time: %s\n", buildTime)
 				fmt.Printf("  Git commit: %s\n", gitCommit)
@@ -76,13 +76,13 @@ func main() {
 }
 
 func printHelp() {
-	help := `multiedit - Interactive file synchronization tool
+	help := `fmr (FileMirror) - Interactive file synchronization tool
 
 USAGE:
-    multiedit [OPTIONS] [PATTERN]
+    fmr [OPTIONS] [PATTERN]
 
 DESCRIPTION:
-    multiedit helps you quickly propagate changes from one source file to
+    FileMirror helps you quickly propagate changes from one source file to
     multiple target files. It provides an interactive interface to search,
     select, and synchronize file contents across your project.
 
@@ -100,9 +100,9 @@ KEYBOARD SHORTCUTS:
     TAB            Cycle focus forward: Path → Search → File List → Path
     Shift+TAB      Cycle focus backward: Path ← Search ← File List
     CTRL-R         Reload files from current path (when on Path/Search)
-    p              Toggle file preview panel
-    d              Toggle diff mode (shows diff vs source when source is selected)
+    p / CTRL-P     Cycle preview modes: hidden → plain → diff → hidden
     PgUp/PgDn      Scroll preview (or CTRL-U/CTRL-D)
+    ?              Show help overlay with all shortcuts
     Type           Edit focused input (Path or Search)
     ↑/↓ or k/j     Navigate through file list (when List is focused)
     s              Mark current file as SOURCE (when List is focused)
@@ -113,7 +113,7 @@ KEYBOARD SHORTCUTS:
     q / CTRL-C     Quit the program
 
 WORKFLOW:
-    1. Run multiedit with optional path and search pattern
+    1. Run fmr with optional path and search pattern
     2. Path input is focused - type to edit or press TAB to move to Search
     3. Edit the path to navigate to different directories (press CTRL-R to reload)
     4. Press TAB to move to Search, type pattern to filter files
@@ -133,10 +133,10 @@ FEATURES:
     - Split-screen layout with scrollable preview
 
 EXAMPLES:
-    multiedit                           # Start in current directory
-    multiedit "*.go"                    # Start with Go files filter
-    multiedit --path ~/projects "*.go"  # Start in specific directory
-    multiedit -p /tmp config.json       # Start in /tmp, filter config.json
+    fmr                           # Start in current directory
+    fmr "*.go"                    # Start with Go files filter
+    fmr --path ~/projects "*.go"  # Start in specific directory
+    fmr -p /tmp config.json       # Start in /tmp, filter config.json
 
     Once running:
     - Path is focused by default - type to edit
@@ -146,7 +146,7 @@ EXAMPLES:
     - Press Enter to confirm sync, TAB to return to Path input
 
 REPOSITORY:
-    https://github.com/jesper/multiedit
+    https://github.com/jesper/filemirror
 `
 	fmt.Println(help)
 }

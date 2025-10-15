@@ -1,4 +1,4 @@
-module github.com/jesper/multiedit
+module github.com/jesper/filemirror
 
 go 1.25.2
 

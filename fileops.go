@@ -22,7 +22,7 @@ func copyFile(src, dst string) error {
 	}
 
 	// Create temporary file in the same directory as destination
-	tmpFile, err := os.CreateTemp(filepath.Dir(dst), ".multiedit-tmp-*")
+	tmpFile, err := os.CreateTemp(filepath.Dir(dst), ".fmr-tmp-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}

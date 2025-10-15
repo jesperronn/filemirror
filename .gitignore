@@ -18,8 +18,8 @@ go.work
 vendor/
 
 # Build output
-/multiedit
-/multiedit-*
+/fmr
+/fmr-*
 /dist/
 
 # IDE and editor files

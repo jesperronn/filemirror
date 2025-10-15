@@ -1,6 +1,6 @@
-# Multiedit - Improvements & Bug Fixes
+# FileMirror (fmr) - Improvements & Bug Fixes
 
-This document tracks known bugs, planned improvements, and feature ideas for the multiedit project.
+This document tracks known bugs, planned improvements, and feature ideas for the FileMirror project.
 
 ## Known Bugs
 
@@ -76,7 +76,7 @@ None currently
 6. **Search history**
    - Remember recent search patterns
    - Use ↑/↓ in search field to cycle through history
-   - Store in `~/.multiedit_history` or similar
+   - Store in `~/.fmr_history` or similar
 
 7. **Path history and bookmarks**
    - Remember recently used paths
@@ -113,7 +113,7 @@ None currently
 ### Developer Experience
 
 14. **Configuration file support**
-    - Support `.multieditrc` or `.multiedit.json`
+    - Support `.fmrrc` or `.fmr.json`
     - Configure:
       - Excluded directories
       - Default search depth
@@ -180,7 +180,7 @@ None currently
 
 26. **Man page**
     - Create proper man page
-    - Install with `man multiedit`
+    - Install with `man fmr`
     - Document all flags and shortcuts
 
 27. **Cookbook/Recipes**

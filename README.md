@@ -16,8 +16,8 @@ Designed for multi-repo workflows where safe, auditable propagation of canonical
 ### From Source
 
 ```bash
-git clone https://github.com/jesper/multiedit
-cd multiedit
+git clone https://github.com/jesper/filemirror
+cd filemirror
 go build -o fmr .
 ```
 

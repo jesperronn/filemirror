@@ -24,7 +24,7 @@ usage() {
     cat << EOF
 Usage: bin/test [OPTIONS]
 
-Run tests for the multiedit project.
+Run tests for the FileMirror project.
 
 OPTIONS:
     -v, --verbose       Verbose test output

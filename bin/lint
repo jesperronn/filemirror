@@ -22,7 +22,7 @@ usage() {
     cat << EOF
 Usage: bin/lint [OPTIONS]
 
-Run linters and code quality checks for the multiedit project.
+Run linters and code quality checks for the FileMirror project.
 
 OPTIONS:
     -f, --fix           Automatically fix issues where possible

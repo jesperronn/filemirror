@@ -18,7 +18,7 @@ usage() {
     cat << EOF
 Usage: bin/setup [OPTIONS]
 
-Set up the development environment for multiedit.
+Set up the development environment for FileMirror.
 
 This script will:
     1. Check for required tools (Go, Git)
@@ -148,8 +148,8 @@ else
 fi
 
 # Build the binary
-log_info "Building multiedit binary..."
-if go build -o multiedit .; then
+log_info "Building fmr binary..."
+if go build -o fmr .; then
     log_success "Binary built successfully"
 else
     log_error "Build failed"
@@ -168,6 +168,6 @@ echo "You can now:"
 echo "  - Run tests:         bin/test"
 echo "  - Run linter:        bin/lint"
 echo "  - Build project:     bin/build"
-echo "  - Run multiedit:     ./multiedit"
+echo "  - Run fmr:           ./fmr"
 echo ""
-echo "For help, run:         ./multiedit --help"
+echo "For help, run:         ./fmr --help"

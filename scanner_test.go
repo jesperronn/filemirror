@@ -34,7 +34,7 @@ func TestMatchesPattern(t *testing.T) {
 
 func TestScanFiles(t *testing.T) {
 	// Create a temporary directory structure for testing
-	tmpDir, err := os.MkdirTemp("", "multiedit-test-*")
+	tmpDir, err := os.MkdirTemp("", "fmr-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestScanFiles(t *testing.T) {
 }
 
 func TestScanFilesExcludesNodeModules(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "multiedit-test-*")
+	tmpDir, err := os.MkdirTemp("", "fmr-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

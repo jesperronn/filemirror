@@ -15,7 +15,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
 # Build configuration
-BINARY_NAME="multiedit"
+BINARY_NAME="fmr"
 VERSION="${VERSION:-$(git describe --tags --always --dirty 2>/dev/null || echo "dev")}"
 BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 GIT_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")"
@@ -31,7 +31,7 @@ usage() {
     cat << EOF
 Usage: bin/build [OPTIONS]
 
-Build the multiedit binary with optimizations and metadata.
+Build the FileMirror (fmr) binary with optimizations and metadata.
 
 OPTIONS:
     -v, --verbose       Verbose output
@@ -109,7 +109,7 @@ if [ "$CLEAN" = true ]; then
 fi
 
 # Show build info
-log_info "Building multiedit"
+log_info "Building fmr"
 echo "  Version:      $VERSION"
 echo "  Git Commit:   $GIT_COMMIT"
 echo "  Build Time:   $BUILD_TIME"
