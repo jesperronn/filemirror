@@ -13,9 +13,10 @@
 
 ### Critical Requirements:
 - **ALWAYS create commits on a new branch** (never on `main`)
-- **ALWAYS push the branch to origin immediately after committing**
+- **Push the branch to origin immediately after committing**
 - This ensures the user can create a pull request on GitHub
 - Do NOT wait for the user to ask - pushing is part of the standard workflow
+- Exceptions if you consider this commit to be an amendment to the previous commit on the branch
 
 ### Branch Management Rules:
 - **ONLY checkout a new branch for NEW features/bugs/tasks**
@@ -36,7 +37,6 @@
 **IMPORTANT**: All commits must be GPG signed.
 
 - Git signing is enabled via `git config commit.gpgsign true`
-- Signing key: 88EAD15913F2AD92314C4F86B557F2DD740B2A3C
 - All future commits will be automatically signed
 - When using git commit commands, the `-S` flag is no longer needed as it's configured globally for this repository
 
@@ -47,10 +47,16 @@ All commits should include:
 2. Detailed body explaining the changes
 3. Co-authored-by trailer:
    ```
-   🤖 Generated with [Claude Code](https://claude.com/claude-code)
+   🤖 Generated with <name of the agent>
 
-   Co-Authored-By: Claude <noreply@anthropic.com>
+   Co-Authored-By: <co-author name> <co-author email>
    ```
+
+   where
+
+   - `<name of the agent>` is the name of the AI agent used (e.g., Claude Code)
+   - `<co-author name>`, `<co-author email>` is the email of the AI agent
+     Example: Claude <noreply@anthropic.com>
 
 ### After Committing:
 **ALWAYS run `git push` immediately after committing.**
