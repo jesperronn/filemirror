@@ -148,11 +148,8 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.focus == focusPath || m.focus == focusSearch {
 		var cmd tea.Cmd
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+c":
 			return m, tea.Quit
-		case "?":
-			m.showHelp = !m.showHelp
-			return m, nil
 		case "ctrl+p":
 			// Cycle through preview modes (even when in input fields)
 			m.previewMode = (m.previewMode + 1) % 3 // Cycle: hidden -> plain -> diff -> hidden
@@ -182,6 +179,36 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.pathInput.Focus()
 			}
 			return m, nil
+		case "enter":
+			// Enter triggers reload and moves to next field
+			newPath := m.pathInput.Value()
+			absPath, err := filepath.Abs(newPath)
+			if err != nil {
+				m.err = fmt.Errorf("invalid path: %w", err)
+				return m, nil
+			}
+			if err := os.Chdir(absPath); err != nil {
+				m.err = fmt.Errorf("cannot change to directory: %w", err)
+				return m, nil
+			}
+			m.workDir = absPath
+			m.err = nil
+
+			// Move to next field
+			switch m.focus {
+			case focusPath:
+				m.focus = focusSearch
+				m.pathInput.Blur()
+				m.searchInput.Focus()
+			case focusSearch:
+				m.focus = focusList
+				m.searchInput.Blur()
+			}
+
+			return m, func() tea.Msg {
+				files, err := scanFiles(m.workDir, m.searchInput.Value())
+				return scanCompleteMsg{files: files, err: err}
+			}
 		case "ctrl+r":
 			// Reload files
 			newPath := m.pathInput.Value()
@@ -477,9 +504,9 @@ func (m model) viewSelect() string {
 
 	switch m.focus {
 	case focusPath:
-		hints = "PATH: Type to edit • CTRL-R: reload • TAB: next • ?: help • q: quit"
+		hints = "PATH: Type to edit • ENTER: reload & next • TAB: next • CTRL-P: cycle preview • CTRL-C: quit"
 	case focusSearch:
-		hints = "SEARCH: Type pattern (*.go, config) • CTRL-P/p: cycle preview • TAB: next • Shift+TAB: prev • ?: help • q: quit"
+		hints = "SEARCH: Type pattern (*.go, config) • ENTER: reload & next • TAB: next • Shift+TAB: prev • CTRL-P: cycle preview • CTRL-C: quit"
 	case focusList:
 		var fileHints []string
 		fileHints = append(fileHints, "↑/↓ or k/j: navigate")
@@ -490,9 +517,9 @@ func (m model) viewSelect() string {
 		}
 		// Show preview mode hint
 		previewModeStr := map[previewMode]string{
-			previewHidden: "hidden→plain",
-			previewPlain:  "plain→diff",
-			previewDiff:   "diff→hidden",
+			previewHidden: "preview plain",
+			previewPlain:  "preview diff",
+			previewDiff:   "hide preview",
 		}[m.previewMode]
 		fileHints = append(fileHints, fmt.Sprintf("p/CTRL-P: %s", previewModeStr))
 
@@ -678,11 +705,11 @@ func (m model) renderPreview() string {
 
 		// Generate diff
 		lines = m.generateDiff(string(sourceContent), string(content))
-		headerTitle = fmt.Sprintf(" Diff: %s → %s ", m.sourceFile.Path, currentFile.Path)
+		headerTitle = fmt.Sprintf(" Preview (diff): %s → %s ", m.sourceFile.Path, currentFile.Path)
 	} else {
 		// Show plain file content
 		lines = strings.Split(string(content), "\n")
-		headerTitle = fmt.Sprintf(" Preview: %s ", currentFile.Path)
+		headerTitle = fmt.Sprintf(" Preview (plain): %s ", currentFile.Path)
 	}
 
 	// Calculate preview dimensions
@@ -729,7 +756,7 @@ func (m model) renderPreview() string {
 			if len(line) > 0 {
 				switch line[0] {
 				case '+':
-					lineStyle = contentStyle.Foreground(lipgloss.Color("10")) // Green for additions
+					lineStyle = contentStyle.Foreground(lipgloss.Color("34")) // Darker green for additions (better contrast)
 				case '-':
 					lineStyle = contentStyle.Foreground(lipgloss.Color("9")) // Red for deletions
 				case '@':
