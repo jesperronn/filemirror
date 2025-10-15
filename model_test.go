@@ -322,6 +322,17 @@ func TestCopySourceToTargets(t *testing.T) {
 			files:       []FileInfo{{Path: target1}},
 			expectError: true,
 		},
+		{
+			name: "selected index out of bounds",
+			sourceFile: &FileInfo{
+				Path: sourceFile,
+			},
+			selected: map[int]bool{0: true, 5: true}, // 5 is out of bounds
+			files: []FileInfo{
+				{Path: target1},
+			},
+			expectError: false, // Should succeed by skipping invalid index
+		},
 	}
 
 	for _, tt := range tests {
