@@ -59,7 +59,7 @@ type scanCompleteMsg struct {
 	err   error
 }
 
-func initialModel(initialQuery string, initialPath string) model {
+func initialModel(initialQuery, initialPath string) model {
 	// Search input
 	searchInput := textinput.New()
 	searchInput.Placeholder = "Search pattern (e.g., *.go, config.json)..."
@@ -440,7 +440,7 @@ func (m *model) filterFiles() {
 func (m *model) resetCursorIfNeeded() {
 	// Reset cursor if out of bounds
 	if m.cursor >= len(m.filteredFiles) {
-		m.cursor = max(0, len(m.filteredFiles)-1)
+		m.cursor = maxInt(0, len(m.filteredFiles)-1)
 	}
 	m.adjustViewport()
 }
@@ -456,13 +456,13 @@ func matchesFilePattern(filePath, pattern string) bool {
 
 	// If pattern contains *, use glob matching on filename
 	if strings.Contains(pattern, "*") {
-		matched, _ := filepath.Match(pattern, filename)
-		if matched {
+		matched, err := filepath.Match(pattern, filename)
+		if err == nil && matched {
 			return true
 		}
 		// Also try matching against full path for patterns like "src/*.go"
-		matched, _ = filepath.Match(pattern, filePath)
-		return matched
+		matched, err = filepath.Match(pattern, filePath)
+		return err == nil && matched
 	}
 
 	// Otherwise, simple substring match on full path
@@ -499,7 +499,7 @@ func (m model) View() string {
 
 	// Overlay help modal if active
 	if m.showHelp {
-		return m.renderHelpOverlay(baseView)
+		return m.renderHelpOverlay()
 	}
 
 	return baseView
@@ -523,33 +523,21 @@ func (m model) viewSelect() string {
 
 	switch m.focus {
 	case focusPath:
-		var pathHints []string
-		pathHints = append(pathHints, "Type to edit")
-		pathHints = append(pathHints, "ENTER: reload & next")
-		pathHints = append(pathHints, "TAB: next")
-		pathHints = append(pathHints, "CTRL-P: cycle preview")
+		pathHints := []string{"Type to edit", "ENTER: reload & next", "TAB: next", "CTRL-P: cycle preview"}
 		if m.previewMode != previewHidden {
 			pathHints = append(pathHints, "CTRL-U/D: scroll preview")
 		}
 		pathHints = append(pathHints, "CTRL-C: quit")
 		hints = "PATH: " + strings.Join(pathHints, " • ")
 	case focusSearch:
-		var searchHints []string
-		searchHints = append(searchHints, "Type pattern (*.go, config)")
-		searchHints = append(searchHints, "ENTER: reload & next")
-		searchHints = append(searchHints, "TAB: next")
-		searchHints = append(searchHints, "Shift+TAB: prev")
-		searchHints = append(searchHints, "CTRL-P: cycle preview")
+		searchHints := []string{"Type pattern (*.go, config)", "ENTER: reload & next", "TAB: next", "Shift+TAB: prev", "CTRL-P: cycle preview"}
 		if m.previewMode != previewHidden {
 			searchHints = append(searchHints, "CTRL-U/D: scroll preview")
 		}
 		searchHints = append(searchHints, "CTRL-C: quit")
 		hints = "SEARCH: " + strings.Join(searchHints, " • ")
 	case focusList:
-		var fileHints []string
-		fileHints = append(fileHints, "↑/↓ or k/j: navigate")
-		fileHints = append(fileHints, "s: set source")
-		fileHints = append(fileHints, "SPACE: toggle target")
+		fileHints := []string{"↑/↓ or k/j: navigate", "s: set source", "SPACE: toggle target"}
 		if m.sourceFile != nil && len(m.selected) > 0 {
 			fileHints = append(fileHints, "ENTER: confirm sync")
 		}
@@ -564,9 +552,7 @@ func (m model) viewSelect() string {
 		if m.previewMode != previewHidden {
 			fileHints = append(fileHints, "CTRL-U/D: scroll preview")
 		}
-		fileHints = append(fileHints, "TAB: next")
-		fileHints = append(fileHints, "?: help")
-		fileHints = append(fileHints, "q: quit")
+		fileHints = append(fileHints, "TAB: next", "?: help", "q: quit")
 		hints = "FILE LIST: " + strings.Join(fileHints, " • ")
 	}
 
@@ -637,7 +623,7 @@ func (m model) viewSelect() string {
 	if m.focus == focusList {
 		headerRowStyle = headerRowStyle.Bold(true)
 	}
-	pathWidth := min(fileListWidth-10, 50) // Adjust based on available space
+	pathWidth := minInt(fileListWidth-10, 50) // Adjust based on available space
 	fileListContent.WriteString(headerRowStyle.Render(fmt.Sprintf("%-*s %-10s %-15s", pathWidth, "FILE LIST", "SIZE", "MODIFIED")) + "\n")
 
 	// File list
@@ -647,7 +633,7 @@ func (m model) viewSelect() string {
 	}
 
 	start := m.viewport
-	end := min(start+maxVisible, len(m.filteredFiles))
+	end := minInt(start+maxVisible, len(m.filteredFiles))
 
 	for i := start; i < end; i++ {
 		file := m.filteredFiles[i]
@@ -779,7 +765,7 @@ func (m model) renderPreview() string {
 
 	// Render visible lines
 	start := m.previewScroll
-	end := min(start+previewHeight, len(lines))
+	end := minInt(start+previewHeight, len(lines))
 
 	for i := start; i < end; i++ {
 		line := lines[i]
@@ -791,7 +777,7 @@ func (m model) renderPreview() string {
 		// Color diff lines if in diff mode
 		if m.previewMode == previewDiff && m.sourceFile != nil {
 			lineStyle := contentStyle
-			if len(line) > 0 {
+			if line != "" {
 				switch line[0] {
 				case '+':
 					lineStyle = contentStyle.Foreground(lipgloss.Color("34")) // Darker green for additions (better contrast)
@@ -922,14 +908,14 @@ func formatSize(size int64) string {
 	return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), "KMGTPE"[exp])
 }
 
-func min(a, b int) int {
+func minInt(a, b int) int {
 	if a < b {
 		return a
 	}
 	return b
 }
 
-func max(a, b int) int {
+func maxInt(a, b int) int {
 	if a > b {
 		return a
 	}
@@ -945,7 +931,7 @@ func (m model) generateDiff(source, target string) []string {
 	result = append(result, fmt.Sprintf("@@ Source: %s → Target @@", m.sourceFile.Path))
 
 	// Simple line-by-line comparison
-	maxLen := max(len(sourceLines), len(targetLines))
+	maxLen := maxInt(len(sourceLines), len(targetLines))
 
 	for i := 0; i < maxLen; i++ {
 		var sourceLine, targetLine string
@@ -975,7 +961,7 @@ func (m model) generateDiff(source, target string) []string {
 }
 
 // renderHelpOverlay renders the help modal overlay
-func (m model) renderHelpOverlay(baseView string) string {
+func (m model) renderHelpOverlay() string {
 	helpContent := `KEYBOARD SHORTCUTS
 
 NAVIGATION
@@ -1018,8 +1004,8 @@ WORKFLOW
 Press ESC or ? to close this help`
 
 	// Calculate modal dimensions
-	modalWidth := min(m.width-4, 80)
-	modalHeight := min(m.height-4, 35)
+	modalWidth := minInt(m.width-4, 80)
+	modalHeight := minInt(m.height-4, 35)
 
 	// Create modal style
 	modalStyle := lipgloss.NewStyle().

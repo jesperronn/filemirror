@@ -13,7 +13,11 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open source file: %w", err)
 	}
-	defer sourceFile.Close()
+	defer func() {
+		if closeErr := sourceFile.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to close source file: %w", closeErr)
+		}
+	}()
 
 	// Get source file info to preserve permissions
 	sourceInfo, err := sourceFile.Stat()
@@ -27,12 +31,14 @@ func copyFile(src, dst string) error {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
-	defer os.Remove(tmpPath) // Clean up temp file if something goes wrong
+	defer func() {
+		_ = os.Remove(tmpPath) // Best effort cleanup, ignore error
+	}()
 
 	// Copy content
 	_, err = io.Copy(tmpFile, sourceFile)
 	if err != nil {
-		tmpFile.Close()
+		_ = tmpFile.Close() // Best effort close, ignore error
 		return fmt.Errorf("failed to copy content: %w", err)
 	}
 

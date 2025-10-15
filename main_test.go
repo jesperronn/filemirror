@@ -16,7 +16,7 @@ func TestPathFlagChangesDirectory(t *testing.T) {
 
 	// Create a test file in the temp directory
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -25,7 +25,9 @@ func TestPathFlagChangesDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get current dir: %v", err)
 	}
-	defer os.Chdir(origDir)
+	defer func() {
+		_ = os.Chdir(origDir) // Best effort to restore directory
+	}()
 
 	// Change to a different directory first
 	homeDir, err := os.UserHomeDir()

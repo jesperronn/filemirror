@@ -38,6 +38,7 @@ LINTERS:
     - go fmt            Format checking
     - go vet            Static analysis
     - golangci-lint     Comprehensive linting (if installed)
+    - shellcheck        Shell script analysis (if installed)
 
 EOF
     exit 0
@@ -126,6 +127,26 @@ if command -v golangci-lint &> /dev/null; then
 else
     log_warn "golangci-lint not installed (optional but recommended)"
     echo "  To install: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
+fi
+
+# Check for shellcheck
+if command -v shellcheck &> /dev/null; then
+    log_info "Running shellcheck..."
+    # Find all shell scripts in bin directory
+    SHELL_SCRIPTS=$(find bin -type f -executable -not -name ".*" 2>/dev/null || true)
+    if [ -n "$SHELL_SCRIPTS" ]; then
+        if echo "$SHELL_SCRIPTS" | xargs shellcheck; then
+            log_success "shellcheck passed"
+        else
+            log_error "shellcheck found issues"
+            ERRORS=$((ERRORS + 1))
+        fi
+    else
+        log_info "No shell scripts found to check"
+    fi
+else
+    log_warn "shellcheck not installed (optional but recommended)"
+    echo "  To install: brew install shellcheck (macOS) or apt-get install shellcheck (Linux)"
 fi
 
 # Check for common issues

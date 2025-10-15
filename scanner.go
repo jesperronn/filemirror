@@ -28,7 +28,7 @@ var excludeDirs = map[string]bool{
 	".cache":       true,
 }
 
-func scanFiles(workDir string, pattern string) ([]FileInfo, error) {
+func scanFiles(workDir, pattern string) ([]FileInfo, error) {
 	var files []FileInfo
 	maxDepth := 4
 
@@ -119,8 +119,8 @@ func matchesPattern(filename, pattern string) bool {
 
 	// If pattern contains *, use glob matching
 	if strings.Contains(pattern, "*") {
-		matched, _ := filepath.Match(pattern, filename)
-		return matched
+		matched, err := filepath.Match(pattern, filename)
+		return err == nil && matched
 	}
 
 	// Otherwise, simple substring match

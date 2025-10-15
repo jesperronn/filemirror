@@ -45,7 +45,9 @@ func TestScanFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get current dir: %v", err)
 	}
-	defer os.Chdir(oldDir)
+	defer func() {
+		_ = os.Chdir(oldDir) // Best effort to restore directory
+	}()
 
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
@@ -63,11 +65,11 @@ func TestScanFiles(t *testing.T) {
 	for _, file := range testFiles {
 		dir := filepath.Dir(file)
 		if dir != "." {
-			if err := os.MkdirAll(dir, 0755); err != nil {
+			if err := os.MkdirAll(dir, 0o755); err != nil {
 				t.Fatalf("Failed to create directory %s: %v", dir, err)
 			}
 		}
-		if err := os.WriteFile(file, []byte("test content"), 0644); err != nil {
+		if err := os.WriteFile(file, []byte("test content"), 0o644); err != nil {
 			t.Fatalf("Failed to create test file %s: %v", file, err)
 		}
 	}
@@ -105,22 +107,24 @@ func TestScanFilesExcludesNodeModules(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get current dir: %v", err)
 	}
-	defer os.Chdir(oldDir)
+	defer func() {
+		_ = os.Chdir(oldDir) // Best effort to restore directory
+	}()
 
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
 	// Create files in node_modules (should be excluded)
-	if err := os.MkdirAll("node_modules/package", 0755); err != nil {
+	if err := os.MkdirAll("node_modules/package", 0o755); err != nil {
 		t.Fatalf("Failed to create node_modules: %v", err)
 	}
-	if err := os.WriteFile("node_modules/package/index.js", []byte("test"), 0644); err != nil {
+	if err := os.WriteFile("node_modules/package/index.js", []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create file in node_modules: %v", err)
 	}
 
 	// Create a regular file
-	if err := os.WriteFile("app.js", []byte("test"), 0644); err != nil {
+	if err := os.WriteFile("app.js", []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 

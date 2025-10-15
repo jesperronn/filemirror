@@ -17,13 +17,13 @@ func TestCopyFile(t *testing.T) {
 	// Create source file
 	srcPath := filepath.Join(tmpDir, "source.txt")
 	srcContent := "Hello, World! This is test content."
-	if err := os.WriteFile(srcPath, []byte(srcContent), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte(srcContent), 0o644); err != nil {
 		t.Fatalf("Failed to create source file: %v", err)
 	}
 
 	// Create destination file with different content
 	dstPath := filepath.Join(tmpDir, "dest.txt")
-	if err := os.WriteFile(dstPath, []byte("old content"), 0644); err != nil {
+	if err := os.WriteFile(dstPath, []byte("old content"), 0o644); err != nil {
 		t.Fatalf("Failed to create destination file: %v", err)
 	}
 
@@ -83,7 +83,7 @@ func TestCopyFilePreservesPermissions(t *testing.T) {
 
 	// Create source file with specific permissions
 	srcPath := filepath.Join(tmpDir, "source.txt")
-	if err := os.WriteFile(srcPath, []byte("test"), 0755); err != nil {
+	if err := os.WriteFile(srcPath, []byte("test"), 0o755); err != nil {
 		t.Fatalf("Failed to create source file: %v", err)
 	}
 
@@ -100,7 +100,7 @@ func TestCopyFilePreservesPermissions(t *testing.T) {
 		t.Fatalf("Failed to stat destination file: %v", err)
 	}
 
-	expectedMode := os.FileMode(0755)
+	expectedMode := os.FileMode(0o755)
 	if info.Mode().Perm() != expectedMode {
 		t.Errorf("Expected permissions %v, got %v", expectedMode, info.Mode().Perm())
 	}
