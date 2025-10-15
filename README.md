@@ -1,5 +1,11 @@
 # FileMirror (fmr)
 
+[![CI](https://github.com/jesperronn/filemirror/workflows/CI/badge.svg)](https://github.com/jesperronn/filemirror/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/jesperronn/filemirror)](https://goreportcard.com/report/github.com/jesperronn/filemirror)
+[![codecov](https://codecov.io/gh/jesperronn/filemirror/branch/main/graph/badge.svg)](https://codecov.io/gh/jesperronn/filemirror)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/jesperronn/filemirror)](https://github.com/jesperronn/filemirror)
+
 FileMirror is a repo-aware CLI for mirroring a canonical file across multiple directories and repositories.
 
 Features: interactive TUI, diff preview, per-repo worktree creation to stage & commit changes, atomic writes, and dry-run mode.

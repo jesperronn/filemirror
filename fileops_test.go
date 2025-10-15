@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -75,6 +76,10 @@ func TestCopyFileNonExistentSource(t *testing.T) {
 }
 
 func TestCopyFilePreservesPermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping permissions test on Windows (file permissions work differently)")
+	}
+
 	tmpDir, err := os.MkdirTemp("", "fmr-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)

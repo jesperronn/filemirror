@@ -118,6 +118,7 @@ if command -v golangci-lint &> /dev/null; then
     if [ "$FIX" = true ]; then
         GOLANGCI_ARGS="--fix"
     fi
+
     if golangci-lint run $GOLANGCI_ARGS ./...; then
         log_success "golangci-lint passed"
     else
