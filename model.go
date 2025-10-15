@@ -155,14 +155,16 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.previewMode = (m.previewMode + 1) % 3 // Cycle: hidden -> plain -> diff -> hidden
 			m.previewScroll = 0
 			return m, nil
-		case "pagedown", "ctrl+d", "ctrl+f":
+		case "pagedown", "ctrl+d", "end":
 			// Scroll preview down (works in any focus when preview is visible)
+			// end key is fn+down on MacBook
 			if m.previewMode != previewHidden {
 				m.previewScroll += 10
 			}
 			return m, nil
-		case "pageup", "ctrl+u", "ctrl+b":
+		case "pageup", "ctrl+u", "home":
 			// Scroll preview up (works in any focus when preview is visible)
+			// home key is fn+up on MacBook
 			if m.previewMode != previewHidden {
 				m.previewScroll -= 10
 				if m.previewScroll < 0 {
@@ -313,15 +315,17 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.previewScroll = 0
 		return m, nil
 
-	case "pagedown", "ctrl+d", "ctrl+f":
+	case "pagedown", "ctrl+d", "end":
 		// Scroll preview down (works in any focus when preview is visible)
+		// end key is fn+down on MacBook
 		if m.previewMode != previewHidden {
 			m.previewScroll += 10
 		}
 		return m, nil
 
-	case "pageup", "ctrl+u", "ctrl+b":
+	case "pageup", "ctrl+u", "home":
 		// Scroll preview up (works in any focus when preview is visible)
+		// home key is fn+up on MacBook
 		if m.previewMode != previewHidden {
 			m.previewScroll -= 10
 			if m.previewScroll < 0 {
@@ -996,7 +1000,7 @@ FILE LIST
 PREVIEW PANEL
   p / CTRL-P      Cycle preview modes: hidden → plain → diff → hidden
   CTRL-U / CTRL-D Scroll preview up/down
-  CTRL-B / CTRL-F Scroll preview up/down (alternative)
+  Fn+↑ / Fn+↓     Scroll preview up/down (MacBook)
   PgUp / PgDn     Scroll preview up/down (if available)
 
 GENERAL
