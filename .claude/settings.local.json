@@ -4,7 +4,8 @@
       "Bash(bin/test:*)",
       "Bash(bin/lint:*)",
       "Bash(go build:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
