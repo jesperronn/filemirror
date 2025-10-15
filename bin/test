@@ -16,29 +16,34 @@ cd "$PROJECT_ROOT"
 
 # Parse command line arguments
 VERBOSE=false
-COVERAGE=false
 RACE=false
 BENCH=false
+HTML=false
 
 usage() {
     cat << EOF
 Usage: bin/test [OPTIONS]
 
 Run tests for the FileMirror project.
+Coverage reports are always generated in tmp/ directory.
 
 OPTIONS:
     -v, --verbose       Verbose test output
-    -c, --coverage      Generate coverage report
     -r, --race          Run tests with race detector
     -b, --bench         Run benchmarks
+    --html              Open HTML coverage report in browser after tests
     -h, --help          Show this help message
 
 EXAMPLES:
-    bin/test                    # Run all tests
+    bin/test                    # Run all tests with coverage
     bin/test --verbose          # Run with verbose output
-    bin/test --coverage         # Run with coverage report
     bin/test --race             # Run with race detector
-    bin/test --bench            # Run benchmarks
+    bin/test --html             # Run and open coverage in browser
+
+COVERAGE:
+    Coverage reports are always generated and saved to:
+    - tmp/coverage.txt          # Raw coverage data
+    - tmp/coverage.html         # HTML coverage report
 
 EOF
     exit 0
@@ -51,16 +56,16 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
-        -c|--coverage)
-            COVERAGE=true
-            shift
-            ;;
         -r|--race)
             RACE=true
             shift
             ;;
         -b|--bench)
             BENCH=true
+            shift
+            ;;
+        --html)
+            HTML=true
             shift
             ;;
         -h|--help)
@@ -85,9 +90,12 @@ log_error() {
     echo -e "${RED}✗${NC} $1"
 }
 
-# Build test command
+# Create tmp directory for coverage reports
+mkdir -p tmp
+
+# Build test command - always generate coverage
 TEST_CMD="go test"
-TEST_ARGS=""
+TEST_ARGS="-coverprofile=tmp/coverage.txt -covermode=atomic"
 
 if [ "$VERBOSE" = true ]; then
     TEST_ARGS="$TEST_ARGS -v"
@@ -97,16 +105,12 @@ if [ "$RACE" = true ]; then
     TEST_ARGS="$TEST_ARGS -race"
 fi
 
-if [ "$COVERAGE" = true ]; then
-    TEST_ARGS="$TEST_ARGS -coverprofile=coverage.out -covermode=atomic"
-fi
-
 if [ "$BENCH" = true ]; then
     TEST_ARGS="$TEST_ARGS -bench=."
 fi
 
 # Run tests
-log_info "Running tests..."
+log_info "Running tests with coverage..."
 if eval "$TEST_CMD $TEST_ARGS ./..."; then
     log_success "All tests passed"
 else
@@ -114,14 +118,29 @@ else
     exit 1
 fi
 
-# Show coverage report if generated
-if [ "$COVERAGE" = true ]; then
-    log_info "Coverage report:"
-    go tool cover -func=coverage.out | tail -1
-    echo ""
-    log_info "To view HTML coverage report, run:"
-    echo "  go tool cover -html=coverage.out"
+# Always show coverage summary
+log_info "Coverage report:"
+go tool cover -func=tmp/coverage.txt | tail -1
+
+# Generate HTML coverage report
+go tool cover -html=tmp/coverage.txt -o tmp/coverage.html 2>/dev/null
+log_success "Coverage reports saved to tmp/"
+
+# Open HTML report if requested
+if [ "$HTML" = true ]; then
+    log_info "Opening coverage report in browser..."
+    if command -v open &> /dev/null; then
+        open tmp/coverage.html
+    elif command -v xdg-open &> /dev/null; then
+        xdg-open tmp/coverage.html
+    else
+        log_info "Please open tmp/coverage.html manually in your browser"
+    fi
 fi
 
 echo ""
 log_success "Testing completed successfully!"
+echo ""
+log_info "View coverage:"
+echo "  Text:  go tool cover -func=tmp/coverage.txt"
+echo "  HTML:  open tmp/coverage.html"
