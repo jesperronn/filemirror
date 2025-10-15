@@ -65,5 +65,5 @@ This is a mandatory step to enable the user to create a pull request on GitHub.
 ## Repository Information
 
 - Main branch: `main`
-- Module path: `github.com/jesperronn/filemirror`
-- Binary name: `fmr`
+- Module path: `github.com/jesperronn/filemirror-fmr`
+- Binary names: `fmr` and `filemirror` (identical binaries, fmr is shorter alias)

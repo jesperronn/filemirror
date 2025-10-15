@@ -32,24 +32,24 @@ jobs:
           mkdir -p dist
 
           # Linux AMD64
-          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/filemirror-linux-amd64 ./cmd/filemirror
-          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/fmr-linux-amd64 ./cmd/fmr
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror-fmr.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/filemirror-linux-amd64 ./cmd/filemirror
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror-fmr.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/fmr-linux-amd64 ./cmd/fmr
 
           # Linux ARM64
-          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/filemirror-linux-arm64 ./cmd/filemirror
-          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/fmr-linux-arm64 ./cmd/fmr
+          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror-fmr.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/filemirror-linux-arm64 ./cmd/filemirror
+          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror-fmr.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/fmr-linux-arm64 ./cmd/fmr
 
           # macOS AMD64
-          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/filemirror-darwin-amd64 ./cmd/filemirror
-          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/fmr-darwin-amd64 ./cmd/fmr
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror-fmr.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/filemirror-darwin-amd64 ./cmd/filemirror
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror-fmr.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/fmr-darwin-amd64 ./cmd/fmr
 
           # macOS ARM64 (Apple Silicon)
-          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/filemirror-darwin-arm64 ./cmd/filemirror
-          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/fmr-darwin-arm64 ./cmd/fmr
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror-fmr.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/filemirror-darwin-arm64 ./cmd/filemirror
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror-fmr.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/fmr-darwin-arm64 ./cmd/fmr
 
           # Windows AMD64
-          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/filemirror-windows-amd64.exe ./cmd/filemirror
-          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/fmr-windows-amd64.exe ./cmd/fmr
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror-fmr.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/filemirror-windows-amd64.exe ./cmd/filemirror
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/jesperronn/filemirror-fmr.Version=${{ steps.get_version.outputs.VERSION }}" -o dist/fmr-windows-amd64.exe ./cmd/fmr
 
       - name: Create checksums
         run: |
@@ -78,10 +78,10 @@ jobs:
           ### Using go install
           \`\`\`bash
           # Install the filemirror binary
-          go install github.com/jesperronn/filemirror/cmd/filemirror@${{ steps.get_version.outputs.VERSION }}
-          
+          go install github.com/jesperronn/filemirror-fmr/cmd/filemirror@${{ steps.get_version.outputs.VERSION }}
+
           # Or install the shorter fmr alias
-          go install github.com/jesperronn/filemirror/cmd/fmr@${{ steps.get_version.outputs.VERSION }}
+          go install github.com/jesperronn/filemirror-fmr/cmd/fmr@${{ steps.get_version.outputs.VERSION }}
           \`\`\`
 
           ### Download binary
@@ -91,12 +91,12 @@ jobs:
           **Linux**:
           \`\`\`bash
           # Download fmr (shorter name)
-          curl -LO https://github.com/jesperronn/filemirror/releases/download/${{ steps.get_version.outputs.VERSION }}/fmr-linux-amd64
+          curl -LO https://github.com/jesperronn/filemirror-fmr/releases/download/${{ steps.get_version.outputs.VERSION }}/fmr-linux-amd64
           chmod +x fmr-linux-amd64
           sudo mv fmr-linux-amd64 /usr/local/bin/fmr
-          
+
           # Or download filemirror
-          curl -LO https://github.com/jesperronn/filemirror/releases/download/${{ steps.get_version.outputs.VERSION }}/filemirror-linux-amd64
+          curl -LO https://github.com/jesperronn/filemirror-fmr/releases/download/${{ steps.get_version.outputs.VERSION }}/filemirror-linux-amd64
           chmod +x filemirror-linux-amd64
           sudo mv filemirror-linux-amd64 /usr/local/bin/filemirror
           \`\`\`
@@ -104,12 +104,12 @@ jobs:
           **macOS** (Intel):
           \`\`\`bash
           # Download fmr (shorter name)
-          curl -LO https://github.com/jesperronn/filemirror/releases/download/${{ steps.get_version.outputs.VERSION }}/fmr-darwin-amd64
+          curl -LO https://github.com/jesperronn/filemirror-fmr/releases/download/${{ steps.get_version.outputs.VERSION }}/fmr-darwin-amd64
           chmod +x fmr-darwin-amd64
           sudo mv fmr-darwin-amd64 /usr/local/bin/fmr
-          
+
           # Or download filemirror
-          curl -LO https://github.com/jesperronn/filemirror/releases/download/${{ steps.get_version.outputs.VERSION }}/filemirror-darwin-amd64
+          curl -LO https://github.com/jesperronn/filemirror-fmr/releases/download/${{ steps.get_version.outputs.VERSION }}/filemirror-darwin-amd64
           chmod +x filemirror-darwin-amd64
           sudo mv filemirror-darwin-amd64 /usr/local/bin/filemirror
           \`\`\`
@@ -117,12 +117,12 @@ jobs:
           **macOS** (Apple Silicon):
           \`\`\`bash
           # Download fmr (shorter name)
-          curl -LO https://github.com/jesperronn/filemirror/releases/download/${{ steps.get_version.outputs.VERSION }}/fmr-darwin-arm64
+          curl -LO https://github.com/jesperronn/filemirror-fmr/releases/download/${{ steps.get_version.outputs.VERSION }}/fmr-darwin-arm64
           chmod +x fmr-darwin-arm64
           sudo mv fmr-darwin-arm64 /usr/local/bin/fmr
-          
+
           # Or download filemirror
-          curl -LO https://github.com/jesperronn/filemirror/releases/download/${{ steps.get_version.outputs.VERSION }}/filemirror-darwin-arm64
+          curl -LO https://github.com/jesperronn/filemirror-fmr/releases/download/${{ steps.get_version.outputs.VERSION }}/filemirror-darwin-arm64
           chmod +x filemirror-darwin-arm64
           sudo mv filemirror-darwin-arm64 /usr/local/bin/filemirror
           \`\`\`
@@ -130,10 +130,10 @@ jobs:
           **Windows** (PowerShell):
           \`\`\`powershell
           # Download fmr (shorter name)
-          Invoke-WebRequest -Uri "https://github.com/jesperronn/filemirror/releases/download/${{ steps.get_version.outputs.VERSION }}/fmr-windows-amd64.exe" -OutFile "fmr.exe"
-          
+          Invoke-WebRequest -Uri "https://github.com/jesperronn/filemirror-fmr/releases/download/${{ steps.get_version.outputs.VERSION }}/fmr-windows-amd64.exe" -OutFile "fmr.exe"
+
           # Or download filemirror
-          Invoke-WebRequest -Uri "https://github.com/jesperronn/filemirror/releases/download/${{ steps.get_version.outputs.VERSION }}/filemirror-windows-amd64.exe" -OutFile "filemirror.exe"
+          Invoke-WebRequest -Uri "https://github.com/jesperronn/filemirror-fmr/releases/download/${{ steps.get_version.outputs.VERSION }}/filemirror-windows-amd64.exe" -OutFile "filemirror.exe"
           \`\`\`
 
           ## Checksums

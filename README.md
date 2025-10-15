@@ -1,10 +1,10 @@
 # FileMirror (fmr)
 
-[![CI](https://github.com/jesperronn/filemirror/workflows/CI/badge.svg)](https://github.com/jesperronn/filemirror/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/jesperronn/filemirror)](https://goreportcard.com/report/github.com/jesperronn/filemirror)
-[![codecov](https://codecov.io/gh/jesperronn/filemirror/branch/main/graph/badge.svg)](https://codecov.io/gh/jesperronn/filemirror)
+[![CI](https://github.com/jesperronn/filemirror-fmr/workflows/CI/badge.svg)](https://github.com/jesperronn/filemirror-fmr/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/jesperronn/filemirror-fmr)](https://goreportcard.com/report/github.com/jesperronn/filemirror-fmr)
+[![codecov](https://codecov.io/gh/jesperronn/filemirror-fmr/branch/main/graph/badge.svg)](https://codecov.io/gh/jesperronn/filemirror-fmr)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/jesperronn/filemirror)](https://github.com/jesperronn/filemirror)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/jesperronn/filemirror-fmr)](https://github.com/jesperronn/filemirror-fmr)
 
 FileMirror is a repo-aware CLI for mirroring a canonical file across multiple directories and repositories.
 
@@ -27,10 +27,10 @@ Install directly to your `$GOPATH/bin`:
 
 ```bash
 # Install the shorter fmr binary (recommended)
-go install github.com/jesperronn/filemirror/cmd/fmr@latest
+go install github.com/jesperronn/filemirror-fmr/cmd/fmr@latest
 
 # Or install the full filemirror binary
-go install github.com/jesperronn/filemirror/cmd/filemirror@latest
+go install github.com/jesperronn/filemirror-fmr/cmd/filemirror@latest
 ```
 
 Both binaries are functionally identical - `fmr` is just a shorter alias for `filemirror`.
@@ -39,7 +39,7 @@ This will make the binary available globally in your terminal.
 ### Option 2: From Source with Build Script
 
 ```bash
-git clone https://github.com/jesperronn/filemirror
+git clone https://github.com/jesperronn/filemirror-fmr
 cd filemirror
 bin/build --install
 ```
@@ -55,7 +55,7 @@ bin/build --binary filemirror --install  # Build only filemirror
 ### Option 3: Manual Build
 
 ```bash
-git clone https://github.com/jesperronn/filemirror
+git clone https://github.com/jesperronn/filemirror-fmr
 cd filemirror
 
 # Build both binaries

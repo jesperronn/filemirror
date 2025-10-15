@@ -148,7 +148,7 @@ EXAMPLES:
     - Press Enter to confirm sync, TAB to return to Path input
 
 REPOSITORY:
-    https://github.com/jesperronn/filemirror
+    https://github.com/jesperronn/filemirror-fmr
 `
 	fmt.Println(help)
 }

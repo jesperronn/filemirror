@@ -160,9 +160,9 @@ fi
 
 # Build flags
 LDFLAGS="-s -w"
-LDFLAGS="$LDFLAGS -X github.com/jesperronn/filemirror.Version=$VERSION"
-LDFLAGS="$LDFLAGS -X github.com/jesperronn/filemirror.BuildTime=$BUILD_TIME"
-LDFLAGS="$LDFLAGS -X github.com/jesperronn/filemirror.GitCommit=$GIT_COMMIT"
+LDFLAGS="$LDFLAGS -X github.com/jesperronn/filemirror-fmr.Version=$VERSION"
+LDFLAGS="$LDFLAGS -X github.com/jesperronn/filemirror-fmr.BuildTime=$BUILD_TIME"
+LDFLAGS="$LDFLAGS -X github.com/jesperronn/filemirror-fmr.GitCommit=$GIT_COMMIT"
 
 # Build each binary
 for BINARY_NAME in "${BINARIES_TO_BUILD[@]}"; do

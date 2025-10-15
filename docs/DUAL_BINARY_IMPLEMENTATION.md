@@ -39,7 +39,7 @@ Successfully implemented dual binary support for FileMirror, providing both `fil
   - Linux (AMD64, ARM64)
   - macOS (Intel, Apple Silicon)
   - Windows (AMD64)
-- Updated ldflags to reference `github.com/jesperronn/filemirror.Version` instead of `main.version`
+- Updated ldflags to reference `github.com/jesperronn/filemirror-fmr.Version` instead of `main.version`
 - Updated release notes with installation instructions for both binaries
 - Updated asset list to include all 10 binaries (5 platforms × 2 binaries)
 
@@ -54,8 +54,8 @@ Successfully implemented dual binary support for FileMirror, providing both `fil
 ### 4. Documentation Updates (`README.md`)
 - Added note explaining both binaries are functionally identical
 - Updated installation instructions for both:
-  - `go install github.com/jesperronn/filemirror/cmd/fmr@latest`
-  - `go install github.com/jesperronn/filemirror/cmd/filemirror@latest`
+  - `go install github.com/jesperronn/filemirror-fmr/cmd/fmr@latest`
+  - `go install github.com/jesperronn/filemirror-fmr/cmd/filemirror@latest`
 - Updated build script examples to show both options
 - Added examples for building specific binaries
 
@@ -74,15 +74,15 @@ Successfully implemented dual binary support for FileMirror, providing both `fil
 **Using go install (Recommended):**
 ```bash
 # Install the shorter fmr binary
-go install github.com/jesperronn/filemirror/cmd/fmr@latest
+go install github.com/jesperronn/filemirror-fmr/cmd/fmr@latest
 
 # Or install the full filemirror binary
-go install github.com/jesperronn/filemirror/cmd/filemirror@latest
+go install github.com/jesperronn/filemirror-fmr/cmd/filemirror@latest
 ```
 
 **From source:**
 ```bash
-git clone https://github.com/jesperronn/filemirror
+git clone https://github.com/jesperronn/filemirror-fmr
 cd filemirror
 bin/build --install
 ```
@@ -117,7 +117,7 @@ go test ./...
 
 ### Build Configuration
 - Both binaries use the same ldflags for versioning
-- Package path for version injection: `github.com/jesperronn/filemirror`
+- Package path for version injection: `github.com/jesperronn/filemirror-fmr`
 - Exported variables: `Version`, `BuildTime`, `GitCommit`
 
 ### Benefits
