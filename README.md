@@ -190,15 +190,149 @@ Here's a typical workflow for synchronizing configuration files across multiple 
 #    - All target files now have the same content as the source!
 ```
 
+## Git Workflow Integration
+
+FileMirror includes built-in git workflow support to automatically commit synced files across multiple repositories.
+
+### How It Works
+
+After selecting your source and target files, the confirmation screen provides git workflow options:
+
+1. **Automatic Repository Detection**: FileMirror detects which target files are in git repositories
+2. **Branch Creation**: Creates a new branch (or reuses an existing compatible branch) in each repository
+3. **Worktree Safety**: Uses git worktrees to avoid disrupting your working directory
+4. **Commit & Push**: Stages, commits, and optionally pushes changes to remote
+
+### Git Workflow Screen
+
+When you press `Enter` after selecting files, you'll see:
+
+```
+╭─────────────────────────╮│ Git Workflow Configuration ──────────┐
+│ FILES TO SYNC          ││                                       │
+│ Source: config.yaml    ││ [✓] Create git commit                 │
+│ Targets: (3 files)     ││                                       │
+│                        ││ Branch Name:                          │
+│                        ││ ╭────────────────────────────────────╮│
+│                        ││ │ chore/filesync-config              ││
+│                        ││ ╰────────────────────────────────────╯│
+│                        ││                                       │
+│                        ││ Commit Message:                       │
+│                        ││ ╭────────────────────────────────────╮│
+│                        ││ │ chore: Sync config.yaml            ││
+│                        ││ │ Synchronized from config.yaml      ││
+│                        ││ ╰────────────────────────────────────╯│
+│                        ││                                       │
+│                        ││ [ ] Push to origin after commit      │
+│                        ││                                       │
+│                        ││ Repository: 2 git repos detected     │
+│                        ││ ✓ project-api                        │
+│                        ││ ✓ project-web                        │
+╰─────────────────────────╯│                                       │
+                           │    ┌──────────────┐  ┌──────────┐   │
+                           │    │ Copy & Commit│  │  Cancel  │   │
+                           └────┴──────────────┴──┴──────────┴───┘
+```
+
+### Keyboard Shortcuts (Git Workflow)
+
+| Key | Action |
+|-----|--------|
+| `TAB` / `Shift+TAB` | Navigate between fields |
+| `CTRL-G` | Toggle git workflow on/off |
+| `SPACE` | Toggle checkboxes (git enabled, push) |
+| Type | Edit branch name or commit message |
+| `ENTER` | Execute copy & commit (when on button) |
+| `ESC` | Cancel and return to file list |
+
+### Branch Reuse Logic
+
+FileMirror intelligently handles existing branches:
+
+- **New Branch**: Creates the branch if it doesn't exist
+- **Safe Reuse**: Reuses existing branch if it only modified the same files
+- **Conflict Prevention**: Shows error if branch exists with different file changes
+
+### Workflow Example with Git
+
+```bash
+# 1. Start FileMirror
+./fmr --path ~/projects "*.yaml"
+
+# 2. Select files in the TUI:
+#    - Press 's' on canonical config.yaml
+#    - Press SPACE on target files in different repos
+#    - Press ENTER to open confirmation
+
+# 3. In Git Workflow screen:
+#    - Git workflow is auto-enabled if repos detected
+#    - Edit branch name: "chore/sync-config"
+#    - Edit commit message as needed
+#    - Check "Push to origin" if desired
+#    - Press TAB to focus "Copy & Commit" button
+#    - Press ENTER to execute
+
+# 4. FileMirror will:
+#    - Copy files to targets
+#    - Create worktrees for each repository
+#    - Commit changes on new branches
+#    - Push to origin (if enabled)
+#    - Display summary in terminal
+
+# Terminal output after completion:
+File sync completed successfully!
+
+Git Workflow Summary:
+
+✓ Successfully committed to 2 repository(ies):
+  - /Users/you/projects/project-api
+  - /Users/you/projects/project-web
+
+Branch: chore/sync-config
+Push: NO (you can push manually later)
+
+Next steps:
+  - Review commits: git log -1 (in each repository)
+  - Push to remote: git push -u origin chore/sync-config
+  - Create pull requests on GitHub/GitLab
+```
+
+### Configuration
+
+**Default Settings:**
+- **Git Workflow**: Enabled if git repos detected
+- **Branch Naming**: `chore/filesync-{filename}`
+- **Push to Origin**: Disabled (safer default)
+
+**Branch Name Convention:**
+- Uses `chore/*` prefix for file synchronization commits
+- Automatically normalizes filenames to git-safe branch names
+- Example: `config.yaml` → `chore/filesync-config`
+
+### Requirements for Git Workflow
+
+- Git installed and available in PATH
+- Target files in git repositories
+- Write permission to create branches and commits
+- (Optional) Configured remote for pushing
+
+### Disable Git Workflow
+
+If you only want to copy files without git operations:
+
+1. In confirmation screen, press `CTRL-G` to toggle git workflow off
+2. Or uncheck `[✓] Create git commit` checkbox with `SPACE`
+3. Button changes to "Copy files" instead of "Copy & Commit"
+
 ## Use Cases
 
 - **Sync configuration files** across multiple microservices or directories
 - **Navigate project structures** and find files across different paths
-- **Update component files** in different feature branches
-- **Propagate utility functions** across multiple packages
-- **Copy templates** to multiple locations in a monorepo
-- **Standardize linting configs** across projects
-- **Mirror canonical files** across multiple repositories with audit trail
+- **Update component files** in different feature branches with automatic commits
+- **Propagate utility functions** across multiple packages with git audit trail
+- **Copy templates** to multiple locations in a monorepo and commit atomically
+- **Standardize linting configs** across projects with tracked changes
+- **Mirror canonical files** across multiple repositories with automatic branching and PR workflow
 
 ## Examples
 
