@@ -175,11 +175,11 @@ func (m *model) triggerScanIfNeeded() tea.Cmd {
 		return nil
 	}
 
+	// Clear previous errors first
+	m.err = nil
+
 	currentSearch := m.searchInput.Value()
 	currentPath := m.pathInput.Value()
-
-	m.lastSearchValue = currentSearch
-	m.lastPathValue = currentPath
 
 	// Update workDir if path changed
 	if currentPath != m.lastPathValue {
@@ -189,11 +189,15 @@ func (m *model) triggerScanIfNeeded() tea.Cmd {
 			return nil
 		}
 		if err := os.Chdir(absPath); err != nil {
-			m.err = fmt.Errorf("cannot change to directory: %w", err)
+			m.err = fmt.Errorf("path does not exist: %s", absPath)
 			return nil
 		}
 		m.workDir = absPath
 	}
+
+	// Update tracking values after successful path change
+	m.lastSearchValue = currentSearch
+	m.lastPathValue = currentPath
 
 	return func() tea.Msg {
 		files, err := scanFiles(m.workDir, currentSearch)
@@ -223,18 +227,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		currentPath := m.pathInput.Value()
 
 		if currentSearch != m.lastSearchValue || currentPath != m.lastPathValue {
-			m.lastSearchValue = currentSearch
-			m.lastPathValue = currentPath
+			// Clear previous errors first
+			m.err = nil
 
 			// Update workDir if path changed
 			if currentPath != m.lastPathValue {
 				absPath, err := filepath.Abs(currentPath)
-				if err == nil {
-					if err := os.Chdir(absPath); err == nil {
-						m.workDir = absPath
-					}
+				if err != nil {
+					m.err = fmt.Errorf("invalid path: %w", err)
+					return m, nil
 				}
+				if err := os.Chdir(absPath); err != nil {
+					m.err = fmt.Errorf("path does not exist: %s", absPath)
+					return m, nil
+				}
+				m.workDir = absPath
 			}
+
+			// Update tracking values after successful path change
+			m.lastSearchValue = currentSearch
+			m.lastPathValue = currentPath
 
 			return m, func() tea.Msg {
 				files, err := scanFiles(m.workDir, currentSearch)
@@ -317,6 +329,9 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, scanCmd
 		case "enter":
 			// Enter triggers reload and moves to next field
+			// Clear previous errors first
+			m.err = nil
+
 			newPath := m.pathInput.Value()
 			absPath, err := filepath.Abs(newPath)
 			if err != nil {
@@ -324,10 +339,11 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			if err := os.Chdir(absPath); err != nil {
-				m.err = fmt.Errorf("cannot change to directory: %w", err)
+				m.err = fmt.Errorf("path does not exist: %s", absPath)
 				return m, nil
 			}
 			m.workDir = absPath
+			m.lastPathValue = newPath
 			m.err = nil
 
 			// Move to next field
@@ -347,6 +363,9 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		case "ctrl+r":
 			// Reload files
+			// Clear previous errors first
+			m.err = nil
+
 			newPath := m.pathInput.Value()
 			absPath, err := filepath.Abs(newPath)
 			if err != nil {
@@ -354,10 +373,11 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			if err := os.Chdir(absPath); err != nil {
-				m.err = fmt.Errorf("cannot change to directory: %w", err)
+				m.err = fmt.Errorf("path does not exist: %s", absPath)
 				return m, nil
 			}
 			m.workDir = absPath
+			m.lastPathValue = newPath
 			m.err = nil
 			return m, func() tea.Msg {
 				files, err := scanFiles(m.workDir, m.searchInput.Value())
@@ -469,6 +489,9 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "ctrl+r":
 		// Reload: change to the path and rescan files
+		// Clear previous errors first
+		m.err = nil
+
 		newPath := m.pathInput.Value()
 		absPath, err := filepath.Abs(newPath)
 		if err != nil {
@@ -477,11 +500,12 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 		if err := os.Chdir(absPath); err != nil {
-			m.err = fmt.Errorf("cannot change to directory: %w", err)
+			m.err = fmt.Errorf("path does not exist: %s", absPath)
 			return m, nil
 		}
 
 		m.workDir = absPath
+		m.lastPathValue = newPath
 		m.err = nil
 
 		// Rescan files in new directory
@@ -781,10 +805,6 @@ func (m *model) adjustViewport() {
 }
 
 func (m model) View() string {
-	if m.err != nil {
-		return fmt.Sprintf("Error: %v\n\nPress q to quit.\n", m.err)
-	}
-
 	var baseView string
 	switch m.mode {
 	case modeSelect:
@@ -871,6 +891,15 @@ func (m model) viewSelect() string {
 
 	pathContent := pathLabelStyle.Render("PATH") + ": " + m.pathInput.View()
 	b.WriteString(pathBox.Render(pathContent) + "\n")
+
+	// Show inline error below path field if there is one
+	if m.err != nil {
+		errorStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("9")). // Red color
+			Bold(true).
+			Width(m.width - 4)
+		b.WriteString(errorStyle.Render(fmt.Sprintf("⚠  %v", m.err)) + "\n")
+	}
 
 	// Search input with border
 	searchBorderColor := lipgloss.Color("240")

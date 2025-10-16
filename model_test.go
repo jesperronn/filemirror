@@ -849,7 +849,7 @@ func TestView(t *testing.T) {
 				m.err = os.ErrNotExist
 				return m
 			},
-			expectMatch: "Error:",
+			expectMatch: "⚠",
 		},
 		{
 			name: "in select mode",
