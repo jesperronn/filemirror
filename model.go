@@ -1444,13 +1444,7 @@ func (m *model) initGitWorkflow() {
 		}
 	}
 
-	repos, err := groupFilesByRepo(targetPaths)
-	if err != nil {
-		m.err = err
-		m.gitRepos = make(map[string][]string)
-	} else {
-		m.gitRepos = repos
-	}
+	m.gitRepos = groupFilesByRepo(targetPaths)
 
 	// Enable git by default if we have git repos
 	m.gitEnabled = len(m.gitRepos) > 0

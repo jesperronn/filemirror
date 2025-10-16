@@ -31,7 +31,7 @@ func detectGitRoot(filePath string) (string, error) {
 // groupFilesByRepo groups a list of file paths by their git repository root.
 // Files that are not in a git repository are skipped.
 // Returns a map where keys are repository root paths and values are lists of files in that repo.
-func groupFilesByRepo(files []string) (map[string][]string, error) {
+func groupFilesByRepo(files []string) map[string][]string {
 	repos := make(map[string][]string)
 
 	for _, file := range files {
@@ -43,7 +43,7 @@ func groupFilesByRepo(files []string) (map[string][]string, error) {
 		repos[root] = append(repos[root], file)
 	}
 
-	return repos, nil
+	return repos
 }
 
 // generateWorktreeID generates a random ID for worktree paths
