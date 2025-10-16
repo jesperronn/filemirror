@@ -1585,6 +1585,14 @@ PREVIEW PANEL
   Fn+↑ / Fn+↓     Scroll preview up/down (MacBook)
   PgUp / PgDn     Scroll preview up/down (if available)
 
+GIT WORKFLOW (Confirmation Screen)
+  TAB / Shift+TAB Navigate between fields
+  CTRL-G          Toggle git workflow on/off
+  SPACE           Toggle checkboxes (git enabled, push toggle)
+  Type            Edit branch name / commit message when focused
+  ENTER           Execute copy & commit (on Copy button)
+  ESC             Cancel and return to file list
+
 GENERAL
   ?               Toggle this help screen
   q / CTRL-C      Quit program
@@ -1595,7 +1603,9 @@ WORKFLOW
   2. Use ↑/↓ or k/j to find your source file
   3. Press 's' to mark it as source
   4. Navigate to target files and press SPACE to select them
-  5. Press ENTER to review, then 'y' to confirm sync
+  5. Press ENTER to review files and configure git workflow
+  6. Edit branch name/commit message or disable git with CTRL-G
+  7. Press ENTER on "Copy & Commit" button to execute
 
 Press ESC or ? to close this help`
 
