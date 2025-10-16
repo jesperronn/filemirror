@@ -742,9 +742,10 @@ func TestGenerateGitSummary(t *testing.T) {
 			repos:      []string{"/path/to/repo1"},
 			branchName: "feature/add-config",
 			expectStrings: []string{
-				"Git commits created on branch 'feature/add-config'",
-				"1 repository",
+				"Git Workflow Summary",
+				"✓ Successfully committed to 1 repository",
 				"/path/to/repo1",
+				"Branch: feature/add-config",
 			},
 		},
 		{
@@ -752,11 +753,12 @@ func TestGenerateGitSummary(t *testing.T) {
 			repos:      []string{"/path/to/repo1", "/path/to/repo2", "/path/to/repo3"},
 			branchName: "chore/sync-files",
 			expectStrings: []string{
-				"Git commits created on branch 'chore/sync-files'",
-				"3 repository",
+				"Git Workflow Summary",
+				"✓ Successfully committed to 3 repository",
 				"/path/to/repo1",
 				"/path/to/repo2",
 				"/path/to/repo3",
+				"Branch: chore/sync-files",
 			},
 		},
 	}

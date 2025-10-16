@@ -201,6 +201,9 @@ None currently
 - [x] Bug #3: Keyboard hints visibility (2025-10-15)
 - [x] Bug #4: CTRL+P support for preview toggle (2025-10-15)
 - [x] Bug #5: Multi-state preview toggle - hidden/plain/diff cycling (2025-10-15)
+- [x] Bug #6: Error display in confirmation UI (2025-10-16)
+- [x] Feature: Branch reuse validation logic (2025-10-16)
+- [x] Feature: Enhanced exit summary with git workflow details (2025-10-16)
 
 ### Must Fix (P0)
 - None currently

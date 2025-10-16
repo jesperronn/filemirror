@@ -1316,6 +1316,15 @@ func (m model) viewConfirm() string {
 
 	gitPanelContent.WriteString("\n")
 
+	// Show errors if any
+	if m.err != nil {
+		errorStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("9")).
+			Bold(true).
+			Width(gitPanelWidth - 8)
+		gitPanelContent.WriteString(errorStyle.Render(fmt.Sprintf("⚠  %v", m.err)) + "\n\n")
+	}
+
 	// Action buttons
 	copyButtonStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -1455,9 +1464,22 @@ func (m *model) generateExitSummary() string {
 // generateGitSummary creates a summary of git operations
 func (m *model) generateGitSummary(repos []string, branchName string) string {
 	var summary strings.Builder
-	summary.WriteString(fmt.Sprintf("\nGit commits created on branch '%s' in %d repository(ies):\n", branchName, len(repos)))
+	summary.WriteString("\nGit Workflow Summary:\n")
+	summary.WriteString(fmt.Sprintf("\n✓ Successfully committed to %d repository(ies):\n", len(repos)))
 	for _, repo := range repos {
 		summary.WriteString(fmt.Sprintf("  - %s\n", repo))
+	}
+	summary.WriteString(fmt.Sprintf("\nBranch: %s\n", branchName))
+	if m.shouldPush {
+		summary.WriteString("Push: YES (pushed to origin)\n")
+	} else {
+		summary.WriteString("Push: NO (you can push manually later)\n")
+	}
+	summary.WriteString("\nNext steps:\n")
+	summary.WriteString("  - Review commits: git log -1 (in each repository)\n")
+	if !m.shouldPush {
+		summary.WriteString(fmt.Sprintf("  - Push to remote: git push -u origin %s\n", branchName))
+		summary.WriteString("  - Create pull requests on GitHub/GitLab\n")
 	}
 	return summary.String()
 }

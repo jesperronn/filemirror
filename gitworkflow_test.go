@@ -218,7 +218,7 @@ func TestCreateWorktreeAndBranch(t *testing.T) {
 				}
 			}
 
-			worktreePath, err := createWorktreeAndBranch(repoPath, tt.branchName)
+			worktreePath, err := createWorktreeAndBranch(repoPath, tt.branchName, []string{})
 
 			if tt.expectError {
 				if err == nil {
@@ -260,7 +260,7 @@ func TestCommitChanges(t *testing.T) {
 	repoPath := createTestGitRepo(t)
 	defer os.RemoveAll(repoPath)
 
-	worktreePath, err := createWorktreeAndBranch(repoPath, "test-commit")
+	worktreePath, err := createWorktreeAndBranch(repoPath, "test-commit", []string{})
 	if err != nil {
 		t.Fatalf("Failed to create worktree: %v", err)
 	}
@@ -344,7 +344,7 @@ func TestCleanupWorktree(t *testing.T) {
 	repoPath := createTestGitRepo(t)
 	defer os.RemoveAll(repoPath)
 
-	worktreePath, err := createWorktreeAndBranch(repoPath, "cleanup-test")
+	worktreePath, err := createWorktreeAndBranch(repoPath, "cleanup-test", []string{})
 	if err != nil {
 		t.Fatalf("Failed to create worktree: %v", err)
 	}
@@ -370,7 +370,7 @@ func TestCopyFileToWorktree(t *testing.T) {
 	repoPath := createTestGitRepo(t)
 	defer os.RemoveAll(repoPath)
 
-	worktreePath, err := createWorktreeAndBranch(repoPath, "copy-test")
+	worktreePath, err := createWorktreeAndBranch(repoPath, "copy-test", []string{})
 	if err != nil {
 		t.Fatalf("Failed to create worktree: %v", err)
 	}
@@ -611,7 +611,7 @@ func TestPushBranch(t *testing.T) {
 	repoPath := createTestGitRepo(t)
 	defer os.RemoveAll(repoPath)
 
-	worktreePath, err := createWorktreeAndBranch(repoPath, "push-test")
+	worktreePath, err := createWorktreeAndBranch(repoPath, "push-test", []string{})
 	if err != nil {
 		t.Fatalf("Failed to create worktree: %v", err)
 	}

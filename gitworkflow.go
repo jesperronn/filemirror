@@ -38,10 +38,96 @@ func generateWorktreeID() string {
 	return hex.EncodeToString(bytes)
 }
 
+// getChangedFilesInBranch returns the list of files changed in a branch compared to its base
+func getChangedFilesInBranch(repoPath, branchName string) ([]string, error) {
+	// Get the merge base (common ancestor with main/master)
+	baseBranch := "main"
+	checkMain := exec.Command("git", "-C", repoPath, "rev-parse", "--verify", "main")
+	if checkMain.Run() != nil {
+		// Try master if main doesn't exist
+		baseBranch = "master"
+	}
+
+	// Get list of changed files in the branch
+	cmd := exec.Command("git", "-C", repoPath, "diff", "--name-only", fmt.Sprintf("%s...%s", baseBranch, branchName))
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get changed files: %w", err)
+	}
+
+	files := strings.Split(strings.TrimSpace(string(output)), "\n")
+	// Filter out empty strings
+	var result []string
+	for _, f := range files {
+		if f != "" {
+			result = append(result, f)
+		}
+	}
+	return result, nil
+}
+
+// canReuseBranch checks if a branch can be safely reused
+// Returns true if the branch exists and only the same file(s) were changed
+func canReuseBranch(repoPath, branchName string, targetFiles []string) (bool, error) {
+	// Check if branch exists
+	checkCmd := exec.Command("git", "-C", repoPath, "rev-parse", "--verify", branchName)
+	if checkCmd.Run() != nil {
+		// Branch doesn't exist, safe to create
+		return true, nil
+	}
+
+	// Branch exists, check what files were changed
+	changedFiles, err := getChangedFilesInBranch(repoPath, branchName)
+	if err != nil {
+		return false, err
+	}
+
+	// Convert target files to relative paths for comparison
+	targetRelPaths := make([]string, 0, len(targetFiles))
+	for _, tf := range targetFiles {
+		relPath, err := filepath.Rel(repoPath, tf)
+		if err != nil {
+			return false, fmt.Errorf("failed to get relative path: %w", err)
+		}
+		targetRelPaths = append(targetRelPaths, relPath)
+	}
+
+	// Check if changed files match target files exactly
+	if len(changedFiles) != len(targetRelPaths) {
+		return false, fmt.Errorf("branch '%s' already exists with different files changed (%d vs %d)", branchName, len(changedFiles), len(targetRelPaths))
+	}
+
+	// Create a map for quick lookup
+	targetMap := make(map[string]bool)
+	for _, tp := range targetRelPaths {
+		targetMap[tp] = true
+	}
+
+	// Check each changed file is in our target list
+	for _, cf := range changedFiles {
+		if !targetMap[cf] {
+			return false, fmt.Errorf("branch '%s' already exists and contains changes to different file: %s", branchName, cf)
+		}
+	}
+
+	// All checks passed - branch exists but only has changes to our target files
+	return true, nil
+}
+
 // createWorktreeAndBranch creates a new git worktree with branch
-func createWorktreeAndBranch(repoPath, branchName string) (string, error) {
+func createWorktreeAndBranch(repoPath, branchName string, targetFiles []string) (string, error) {
 	// Generate unique worktree path
 	worktreePath := filepath.Join(os.TempDir(), fmt.Sprintf("fmr-worktree-%s", generateWorktreeID()))
+
+	// Validate if branch can be reused
+	canReuse, err := canReuseBranch(repoPath, branchName, targetFiles)
+	if err != nil {
+		return "", err
+	}
+
+	if !canReuse {
+		return "", fmt.Errorf("branch validation failed: %w", err)
+	}
 
 	// Check if branch already exists
 	checkCmd := exec.Command("git", "-C", repoPath, "rev-parse", "--verify", branchName)
@@ -49,7 +135,7 @@ func createWorktreeAndBranch(repoPath, branchName string) (string, error) {
 
 	var cmd *exec.Cmd
 	if branchExists {
-		// Branch exists, check it out in the worktree
+		// Branch exists and is safe to reuse, check it out in the worktree
 		cmd = exec.Command("git", "-C", repoPath, "worktree", "add", worktreePath, branchName)
 	} else {
 		// Create new branch in worktree
@@ -160,8 +246,8 @@ func performGitWorkflow(repos map[string][]string, branchName, commitMessage str
 
 // processRepo processes a single repository
 func processRepo(repoPath string, files []string, branchName, commitMessage string, shouldPush bool) (bool, error) {
-	// Create worktree
-	worktreePath, err := createWorktreeAndBranch(repoPath, branchName)
+	// Create worktree with branch validation
+	worktreePath, err := createWorktreeAndBranch(repoPath, branchName, files)
 	if err != nil {
 		return false, fmt.Errorf("repo %s: %w", repoPath, err)
 	}
