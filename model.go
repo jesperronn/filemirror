@@ -695,6 +695,15 @@ func (m *model) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		// Execute on copy button or cancel button
 		if m.confirmFocus == focusCopyButton {
+			// Validate branch name if git is enabled
+			if m.gitEnabled {
+				branchName := m.branchNameInput.Value()
+				if err := validateBranchName(branchName); err != nil {
+					m.err = fmt.Errorf("Invalid branch name: %w", err)
+					return m, nil
+				}
+			}
+
 			// Perform the copy operation
 			err := m.copySourceToTargets()
 			if err != nil {

@@ -1,6 +1,7 @@
 package filemirror
 
 import (
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -58,4 +59,66 @@ func normalizeBranchName(filename string) string {
 	}
 
 	return trimmed
+}
+
+// validateBranchName validates a git branch name against git's naming rules
+// Returns nil if valid, error with description if invalid
+func validateBranchName(branchName string) error {
+	// Check empty
+	if strings.TrimSpace(branchName) == "" {
+		return fmt.Errorf("branch name cannot be empty")
+	}
+
+	// Git branch name rules (simplified but covers most important cases)
+	// https://git-scm.com/docs/git-check-ref-format
+
+	// Cannot start with a dot
+	if strings.HasPrefix(branchName, ".") {
+		return fmt.Errorf("branch name cannot start with a dot")
+	}
+
+	// Cannot end with a dot
+	if strings.HasSuffix(branchName, ".") {
+		return fmt.Errorf("branch name cannot end with a dot")
+	}
+
+	// Cannot end with .lock
+	if strings.HasSuffix(branchName, ".lock") {
+		return fmt.Errorf("branch name cannot end with .lock")
+	}
+
+	// Cannot contain two consecutive dots
+	if strings.Contains(branchName, "..") {
+		return fmt.Errorf("branch name cannot contain two consecutive dots (..)")
+	}
+
+	// Cannot contain space, ~, ^, :, ?, *, [, \, or control characters
+	invalidChars := []string{" ", "~", "^", ":", "?", "*", "[", "\\", "\n", "\r", "\t"}
+	for _, char := range invalidChars {
+		if strings.Contains(branchName, char) {
+			return fmt.Errorf("branch name cannot contain '%s'", char)
+		}
+	}
+
+	// Cannot start or end with slash
+	if strings.HasPrefix(branchName, "/") || strings.HasSuffix(branchName, "/") {
+		return fmt.Errorf("branch name cannot start or end with '/'")
+	}
+
+	// Cannot contain consecutive slashes
+	if strings.Contains(branchName, "//") {
+		return fmt.Errorf("branch name cannot contain consecutive slashes (//)")
+	}
+
+	// Cannot be a single "@" character
+	if branchName == "@" {
+		return fmt.Errorf("branch name cannot be '@'")
+	}
+
+	// Cannot contain @{ sequence
+	if strings.Contains(branchName, "@{") {
+		return fmt.Errorf("branch name cannot contain '@{'")
+	}
+
+	return nil
 }
