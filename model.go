@@ -5,12 +5,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
+
+// Configurable debounce duration for automatic scanning after typing stops
+const scanDebounceDuration = 1250 * time.Millisecond
 
 type mode int
 
@@ -75,12 +79,19 @@ type model struct {
 
 	// Summary to print after exit
 	exitSummary string
+
+	// Debounce fields for automatic scanning
+	lastSearchValue string // last search value we scanned for
+	lastPathValue   string // last path value we scanned for
+	debounceTimer   *time.Timer
 }
 
 type scanCompleteMsg struct {
 	files []FileInfo
 	err   error
 }
+
+type debounceScanMsg struct{}
 
 func InitialModel(initialQuery, initialPath string) model {
 	// Search input
@@ -108,20 +119,22 @@ func InitialModel(initialQuery, initialPath string) model {
 	pathInput.SetValue(workDir)
 
 	m := model{
-		files:         []FileInfo{},
-		filteredFiles: []FileInfo{},
-		cursor:        0,
-		selected:      make(map[int]bool),
-		searchInput:   searchInput,
-		pathInput:     pathInput,
-		width:         80,
-		height:        24,
-		mode:          modeSelect,
-		viewport:      0,
-		focus:         focusList, // Start with file list focused
-		workDir:       workDir,
-		previewScroll: 0,
-		previewMode:   previewPlain, // Start with plain view (can be changed to previewHidden)
+		files:           []FileInfo{},
+		filteredFiles:   []FileInfo{},
+		cursor:          0,
+		selected:        make(map[int]bool),
+		searchInput:     searchInput,
+		pathInput:       pathInput,
+		width:           80,
+		height:          24,
+		mode:            modeSelect,
+		viewport:        0,
+		focus:           focusList, // Start with file list focused
+		workDir:         workDir,
+		previewScroll:   0,
+		previewMode:     previewPlain, // Start with plain view (can be changed to previewHidden)
+		lastSearchValue: initialQuery,
+		lastPathValue:   workDir,
 	}
 
 	return m
@@ -135,6 +148,57 @@ func (m model) Init() tea.Cmd {
 			return scanCompleteMsg{files: files, err: err}
 		},
 	)
+}
+
+// startDebounceTimer starts or restarts the debounce timer
+func (m *model) startDebounceTimer() tea.Cmd {
+	// Stop existing timer if any
+	if m.debounceTimer != nil {
+		m.debounceTimer.Stop()
+	}
+
+	return tea.Tick(scanDebounceDuration, func(t time.Time) tea.Msg {
+		return debounceScanMsg{}
+	})
+}
+
+// shouldScanOnBlur checks if we need to scan when leaving a field
+func (m *model) shouldScanOnBlur() bool {
+	currentSearch := m.searchInput.Value()
+	currentPath := m.pathInput.Value()
+	return currentSearch != m.lastSearchValue || currentPath != m.lastPathValue
+}
+
+// triggerScanIfNeeded triggers a scan if field values have changed
+func (m *model) triggerScanIfNeeded() tea.Cmd {
+	if !m.shouldScanOnBlur() {
+		return nil
+	}
+
+	currentSearch := m.searchInput.Value()
+	currentPath := m.pathInput.Value()
+
+	m.lastSearchValue = currentSearch
+	m.lastPathValue = currentPath
+
+	// Update workDir if path changed
+	if currentPath != m.lastPathValue {
+		absPath, err := filepath.Abs(currentPath)
+		if err != nil {
+			m.err = fmt.Errorf("invalid path: %w", err)
+			return nil
+		}
+		if err := os.Chdir(absPath); err != nil {
+			m.err = fmt.Errorf("cannot change to directory: %w", err)
+			return nil
+		}
+		m.workDir = absPath
+	}
+
+	return func() tea.Msg {
+		files, err := scanFiles(m.workDir, currentSearch)
+		return scanCompleteMsg{files: files, err: err}
+	}
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -151,6 +215,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.files = msg.files
 		m.filterFiles()
+		return m, nil
+
+	case debounceScanMsg:
+		// Debounce timer fired - trigger scan if values have changed
+		currentSearch := m.searchInput.Value()
+		currentPath := m.pathInput.Value()
+
+		if currentSearch != m.lastSearchValue || currentPath != m.lastPathValue {
+			m.lastSearchValue = currentSearch
+			m.lastPathValue = currentPath
+
+			// Update workDir if path changed
+			if currentPath != m.lastPathValue {
+				absPath, err := filepath.Abs(currentPath)
+				if err == nil {
+					if err := os.Chdir(absPath); err == nil {
+						m.workDir = absPath
+					}
+				}
+			}
+
+			return m, func() tea.Msg {
+				files, err := scanFiles(m.workDir, currentSearch)
+				return scanCompleteMsg{files: files, err: err}
+			}
+		}
 		return m, nil
 
 	case tea.KeyMsg:
@@ -197,6 +287,9 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "tab":
 			// Handle tab to switch focus
+			// Trigger scan when leaving path or search fields if values changed
+			scanCmd := m.triggerScanIfNeeded()
+
 			switch m.focus {
 			case focusPath:
 				m.focus = focusSearch
@@ -206,9 +299,12 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.focus = focusList
 				m.searchInput.Blur()
 			}
-			return m, nil
+			return m, scanCmd
 		case "shift+tab":
 			// Handle shift+tab to switch focus backwards
+			// Trigger scan when leaving path or search fields if values changed
+			scanCmd := m.triggerScanIfNeeded()
+
 			switch m.focus {
 			case focusPath:
 				m.focus = focusList
@@ -218,7 +314,7 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.searchInput.Blur()
 				m.pathInput.Focus()
 			}
-			return m, nil
+			return m, scanCmd
 		case "enter":
 			// Enter triggers reload and moves to next field
 			newPath := m.pathInput.Value()
@@ -273,10 +369,14 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.searchInput, cmd = m.searchInput.Update(msg)
 				// Only filter in-memory while typing - don't scan filesystem
 				m.filterFiles()
-				return m, cmd
+				// Start debounce timer for automatic scan after typing stops
+				debounceCmd := m.startDebounceTimer()
+				return m, tea.Batch(cmd, debounceCmd)
 			} else if m.focus == focusPath {
 				m.pathInput, cmd = m.pathInput.Update(msg)
-				return m, cmd
+				// Start debounce timer for automatic scan after typing stops
+				debounceCmd := m.startDebounceTimer()
+				return m, tea.Batch(cmd, debounceCmd)
 			}
 		}
 	}
@@ -300,6 +400,12 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "tab":
 		// Cycle focus forward: path -> search -> file list -> path
+		// Trigger scan when leaving file list to enter path field (if values changed)
+		var scanCmd tea.Cmd
+		if m.focus == focusList {
+			scanCmd = m.triggerScanIfNeeded()
+		}
+
 		switch m.focus {
 		case focusPath:
 			m.focus = focusSearch
@@ -312,10 +418,16 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.focus = focusPath
 			m.pathInput.Focus()
 		}
-		return m, nil
+		return m, scanCmd
 
 	case "shift+tab":
 		// Cycle focus backward: path <- search <- file list <- path
+		// Trigger scan when leaving file list to enter search field (if values changed)
+		var scanCmd tea.Cmd
+		if m.focus == focusList {
+			scanCmd = m.triggerScanIfNeeded()
+		}
+
 		switch m.focus {
 		case focusPath:
 			m.focus = focusList
@@ -328,7 +440,7 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.focus = focusSearch
 			m.searchInput.Focus()
 		}
-		return m, nil
+		return m, scanCmd
 
 	case "p", "ctrl+p":
 		// Cycle through preview modes (works in any focus mode)
