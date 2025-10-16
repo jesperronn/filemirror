@@ -271,11 +271,9 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Let the input handle all other keys (including typing)
 			if m.focus == focusSearch {
 				m.searchInput, cmd = m.searchInput.Update(msg)
+				// Only filter in-memory while typing - don't scan filesystem
 				m.filterFiles()
-				return m, tea.Batch(cmd, func() tea.Msg {
-					files, err := scanFiles(m.workDir, m.searchInput.Value())
-					return scanCompleteMsg{files: files, err: err}
-				})
+				return m, cmd
 			} else if m.focus == focusPath {
 				m.pathInput, cmd = m.pathInput.Update(msg)
 				return m, cmd
