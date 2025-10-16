@@ -665,3 +665,224 @@ func TestAdjustViewport(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateExitSummary(t *testing.T) {
+	tests := []struct {
+		name          string
+		sourceFile    *FileInfo
+		filteredFiles []FileInfo
+		selected      map[int]bool
+		expectStrings []string
+	}{
+		{
+			name: "single target",
+			sourceFile: &FileInfo{
+				Path: "source.txt",
+			},
+			filteredFiles: []FileInfo{
+				{Path: "target1.txt"},
+			},
+			selected: map[int]bool{0: true},
+			expectStrings: []string{
+				"File sync completed successfully",
+				"Source: source.txt",
+				"Copied to 1 target",
+				"target1.txt",
+			},
+		},
+		{
+			name: "multiple targets",
+			sourceFile: &FileInfo{
+				Path: "config.yaml",
+			},
+			filteredFiles: []FileInfo{
+				{Path: "app1/config.yaml"},
+				{Path: "app2/config.yaml"},
+				{Path: "app3/config.yaml"},
+			},
+			selected: map[int]bool{0: true, 1: true, 2: true},
+			expectStrings: []string{
+				"File sync completed successfully",
+				"Source: config.yaml",
+				"Copied to 3 target",
+				"app1/config.yaml",
+				"app2/config.yaml",
+				"app3/config.yaml",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := InitialModel("", ".")
+			m.sourceFile = tt.sourceFile
+			m.filteredFiles = tt.filteredFiles
+			m.selected = tt.selected
+
+			summary := m.generateExitSummary()
+
+			for _, expected := range tt.expectStrings {
+				if !strings.Contains(summary, expected) {
+					t.Errorf("Expected summary to contain %q, but it wasn't found.\nSummary: %s", expected, summary)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateGitSummary(t *testing.T) {
+	tests := []struct {
+		name          string
+		repos         []string
+		branchName    string
+		expectStrings []string
+	}{
+		{
+			name:       "single repo",
+			repos:      []string{"/path/to/repo1"},
+			branchName: "feature/add-config",
+			expectStrings: []string{
+				"Git commits created on branch 'feature/add-config'",
+				"1 repository",
+				"/path/to/repo1",
+			},
+		},
+		{
+			name:       "multiple repos",
+			repos:      []string{"/path/to/repo1", "/path/to/repo2", "/path/to/repo3"},
+			branchName: "chore/sync-files",
+			expectStrings: []string{
+				"Git commits created on branch 'chore/sync-files'",
+				"3 repository",
+				"/path/to/repo1",
+				"/path/to/repo2",
+				"/path/to/repo3",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := InitialModel("", ".")
+			summary := m.generateGitSummary(tt.repos, tt.branchName)
+
+			for _, expected := range tt.expectStrings {
+				if !strings.Contains(summary, expected) {
+					t.Errorf("Expected summary to contain %q, but it wasn't found.\nSummary: %s", expected, summary)
+				}
+			}
+		})
+	}
+}
+
+func TestInitialModel(t *testing.T) {
+	tests := []struct {
+		name         string
+		initialQuery string
+		initialPath  string
+	}{
+		{
+			name:         "with query and path",
+			initialQuery: "*.go",
+			initialPath:  "/tmp",
+		},
+		{
+			name:         "with query only",
+			initialQuery: "test",
+			initialPath:  "",
+		},
+		{
+			name:         "empty query and path",
+			initialQuery: "",
+			initialPath:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := InitialModel(tt.initialQuery, tt.initialPath)
+
+			// Verify basic initialization
+			if m.files == nil {
+				t.Error("Expected files slice to be initialized")
+			}
+			if m.filteredFiles == nil {
+				t.Error("Expected filteredFiles slice to be initialized")
+			}
+			if m.selected == nil {
+				t.Error("Expected selected map to be initialized")
+			}
+
+			// Verify search input has the query
+			if m.searchInput.Value() != tt.initialQuery {
+				t.Errorf("Expected searchInput value=%q, got %q", tt.initialQuery, m.searchInput.Value())
+			}
+
+			// Verify mode is set to select
+			if m.mode != modeSelect {
+				t.Errorf("Expected mode=modeSelect, got %v", m.mode)
+			}
+
+			// Verify focus is on file list
+			if m.focus != focusList {
+				t.Errorf("Expected focus=focusList, got %v", m.focus)
+			}
+
+			// Verify preview mode is set
+			if m.previewMode != previewPlain {
+				t.Errorf("Expected previewMode=previewPlain, got %v", m.previewMode)
+			}
+		})
+	}
+}
+
+func TestView(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupModel  func() model
+		expectMatch string
+	}{
+		{
+			name: "with error",
+			setupModel: func() model {
+				m := InitialModel("", ".")
+				m.err = os.ErrNotExist
+				return m
+			},
+			expectMatch: "Error:",
+		},
+		{
+			name: "in select mode",
+			setupModel: func() model {
+				m := InitialModel("", ".")
+				m.mode = modeSelect
+				return m
+			},
+			expectMatch: "FileMirror",
+		},
+		{
+			name: "in confirm mode",
+			setupModel: func() model {
+				m := InitialModel("", ".")
+				m.mode = modeConfirm
+				m.sourceFile = &FileInfo{Path: "test.txt"}
+				m.filteredFiles = []FileInfo{{Path: "target.txt"}}
+				m.selected = map[int]bool{0: true}
+				m.initGitWorkflow()
+				return m
+			},
+			expectMatch: "Confirm Copy",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := tt.setupModel()
+			view := m.View()
+
+			if !strings.Contains(view, tt.expectMatch) {
+				t.Errorf("Expected view to contain %q, but it wasn't found", tt.expectMatch)
+			}
+		})
+	}
+}
