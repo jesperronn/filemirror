@@ -1435,16 +1435,21 @@ func (m *model) initGitWorkflow() {
 	}
 	m.commitMsgInput.SetValue(commitMsg)
 
-	// Detect git repos for target files
-	m.gitRepos = make(map[string][]string)
+	// Detect git repos for target files using extracted function
+	targetPaths := []string{}
 	for idx := range m.selected {
 		if idx < len(m.filteredFiles) {
 			targetPath := filepath.Join(m.workDir, m.filteredFiles[idx].Path)
-			root, err := detectGitRoot(targetPath)
-			if err == nil {
-				m.gitRepos[root] = append(m.gitRepos[root], targetPath)
-			}
+			targetPaths = append(targetPaths, targetPath)
 		}
+	}
+
+	repos, err := groupFilesByRepo(targetPaths)
+	if err != nil {
+		m.err = err
+		m.gitRepos = make(map[string][]string)
+	} else {
+		m.gitRepos = repos
 	}
 
 	// Enable git by default if we have git repos
