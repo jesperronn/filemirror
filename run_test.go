@@ -69,7 +69,7 @@ func TestPathFlagChangesDirectory(t *testing.T) {
 	}
 
 	// Verify we can scan files in the new directory
-	files, err := scanFiles(absPath, "")
+	files, err := scanFiles(absPath)
 	if err != nil {
 		t.Fatalf("Failed to scan files: %v", err)
 	}

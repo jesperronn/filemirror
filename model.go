@@ -131,7 +131,9 @@ func (m model) Init() tea.Cmd {
 	return tea.Batch(
 		textinput.Blink,
 		func() tea.Msg {
-			files, err := scanFiles(m.workDir, m.searchInput.Value())
+			// Performance optimization: Scan without pattern filtering
+			// Pattern filtering is done in-memory after scanning
+			files, err := scanFiles(m.workDir)
 			return scanCompleteMsg{files: files, err: err}
 		},
 	)
@@ -246,7 +248,8 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 
 			return m, func() tea.Msg {
-				files, err := scanFiles(m.workDir, m.searchInput.Value())
+				// Performance optimization: Scan without pattern filtering
+				files, err := scanFiles(m.workDir)
 				return scanCompleteMsg{files: files, err: err}
 			}
 		case "ctrl+r":
@@ -264,18 +267,18 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.workDir = absPath
 			m.err = nil
 			return m, func() tea.Msg {
-				files, err := scanFiles(m.workDir, m.searchInput.Value())
+				// Performance optimization: Scan without pattern filtering
+				files, err := scanFiles(m.workDir)
 				return scanCompleteMsg{files: files, err: err}
 			}
 		default:
 			// Let the input handle all other keys (including typing)
 			if m.focus == focusSearch {
 				m.searchInput, cmd = m.searchInput.Update(msg)
+				// Performance optimization: Only filter files, don't re-scan
+				// File scanning is expensive - we only need to filter the existing results
 				m.filterFiles()
-				return m, tea.Batch(cmd, func() tea.Msg {
-					files, err := scanFiles(m.workDir, m.searchInput.Value())
-					return scanCompleteMsg{files: files, err: err}
-				})
+				return m, cmd
 			} else if m.focus == focusPath {
 				m.pathInput, cmd = m.pathInput.Update(msg)
 				return m, cmd
@@ -376,7 +379,8 @@ func (m *model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 		// Rescan files in new directory
 		return m, func() tea.Msg {
-			files, err := scanFiles(m.workDir, m.searchInput.Value())
+			// Performance optimization: Scan without pattern filtering
+			files, err := scanFiles(m.workDir)
 			return scanCompleteMsg{files: files, err: err}
 		}
 

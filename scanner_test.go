@@ -6,32 +6,6 @@ import (
 	"testing"
 )
 
-func TestMatchesPattern(t *testing.T) {
-	tests := []struct {
-		filename string
-		pattern  string
-		expected bool
-	}{
-		{"main.go", "*.go", true},
-		{"main.go", "main", true},
-		{"main.go", "test", false},
-		{"config.json", "*.json", true},
-		{"config.json", "config", true},
-		{"README.md", "*.md", true},
-		{"test.txt", "*.go", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.filename+"_"+tt.pattern, func(t *testing.T) {
-			result := matchesPattern(tt.filename, tt.pattern)
-			if result != tt.expected {
-				t.Errorf("matchesPattern(%q, %q) = %v, want %v",
-					tt.filename, tt.pattern, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestScanFiles(t *testing.T) {
 	// Create a temporary directory structure for testing
 	tmpDir, err := os.MkdirTemp("", "fmr-test-*")
@@ -75,7 +49,7 @@ func TestScanFiles(t *testing.T) {
 	}
 
 	// Test scanning all files
-	files, err := scanFiles(tmpDir, "")
+	files, err := scanFiles(tmpDir)
 	if err != nil {
 		t.Fatalf("scanFiles failed: %v", err)
 	}
@@ -84,15 +58,16 @@ func TestScanFiles(t *testing.T) {
 		t.Errorf("Expected %d files, got %d", len(testFiles), len(files))
 	}
 
-	// Test scanning with pattern
-	files, err = scanFiles(tmpDir, "*.go")
-	if err != nil {
-		t.Fatalf("scanFiles with pattern failed: %v", err)
+	// Verify the files found are correct
+	foundFiles := make(map[string]bool)
+	for _, file := range files {
+		foundFiles[file.Path] = true
 	}
 
-	expectedGoFiles := 3
-	if len(files) != expectedGoFiles {
-		t.Errorf("Expected %d .go files, got %d", expectedGoFiles, len(files))
+	for _, expected := range testFiles {
+		if !foundFiles[expected] {
+			t.Errorf("Expected file %s not found in results", expected)
+		}
 	}
 }
 
@@ -128,7 +103,7 @@ func TestScanFilesExcludesNodeModules(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	files, err := scanFiles(tmpDir, "")
+	files, err := scanFiles(tmpDir)
 	if err != nil {
 		t.Fatalf("scanFiles failed: %v", err)
 	}
@@ -173,7 +148,7 @@ func TestScanFilesDeepDirectory(t *testing.T) {
 		}
 	}
 
-	files, err := scanFiles(tmpDir, "")
+	files, err := scanFiles(tmpDir)
 	if err != nil {
 		t.Fatalf("scanFiles failed: %v", err)
 	}
@@ -216,7 +191,7 @@ func TestScanFilesAllExcludedDirs(t *testing.T) {
 		t.Fatalf("Failed to create regular file: %v", err)
 	}
 
-	files, err := scanFiles(tmpDir, "")
+	files, err := scanFiles(tmpDir)
 	if err != nil {
 		t.Fatalf("scanFiles failed: %v", err)
 	}
@@ -238,7 +213,7 @@ func TestScanFilesEmptyDirectory(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	files, err := scanFiles(tmpDir, "")
+	files, err := scanFiles(tmpDir)
 	if err != nil {
 		t.Fatalf("scanFiles failed: %v", err)
 	}
@@ -272,6 +247,17 @@ func TestScanFilesWithComplexPattern(t *testing.T) {
 		}
 	}
 
+	// Scan all files (pattern filtering is now done in-memory)
+	allFiles, err := scanFiles(tmpDir)
+	if err != nil {
+		t.Fatalf("scanFiles failed: %v", err)
+	}
+
+	if len(allFiles) != len(testFiles) {
+		t.Errorf("Expected %d files, got %d", len(testFiles), len(allFiles))
+	}
+
+	// Test pattern filtering using matchesFilePattern
 	tests := []struct {
 		pattern       string
 		expectedCount int
@@ -286,13 +272,16 @@ func TestScanFilesWithComplexPattern(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.pattern, func(t *testing.T) {
-			files, err := scanFiles(tmpDir, tt.pattern)
-			if err != nil {
-				t.Fatalf("scanFiles failed: %v", err)
+			// Count files matching pattern
+			count := 0
+			for _, file := range allFiles {
+				if matchesFilePattern(file.Path, tt.pattern) {
+					count++
+				}
 			}
 
-			if len(files) != tt.expectedCount {
-				t.Errorf("Pattern %q: expected %d files, got %d", tt.pattern, tt.expectedCount, len(files))
+			if count != tt.expectedCount {
+				t.Errorf("Pattern %q: expected %d files, got %d", tt.pattern, tt.expectedCount, count)
 			}
 		})
 	}
@@ -318,7 +307,7 @@ func TestScanFilesSorted(t *testing.T) {
 		// Note: This might be flaky on very fast systems
 	}
 
-	files, err := scanFiles(tmpDir, "")
+	files, err := scanFiles(tmpDir)
 	if err != nil {
 		t.Fatalf("scanFiles failed: %v", err)
 	}
@@ -358,7 +347,7 @@ func TestScanFilesRelativePaths(t *testing.T) {
 		}
 	}
 
-	files, err := scanFiles(tmpDir, "")
+	files, err := scanFiles(tmpDir)
 	if err != nil {
 		t.Fatalf("scanFiles failed: %v", err)
 	}

@@ -28,7 +28,7 @@ var excludeDirs = map[string]bool{
 	".cache":       true,
 }
 
-func scanFiles(workDir, pattern string) ([]FileInfo, error) {
+func scanFiles(workDir string) ([]FileInfo, error) {
 	var files []FileInfo
 	maxDepth := 4
 
@@ -75,10 +75,9 @@ func scanFiles(workDir, pattern string) ([]FileInfo, error) {
 			return nil
 		}
 
-		// Filter by pattern if provided
-		if pattern != "" && !matchesPattern(d.Name(), pattern) {
-			return nil
-		}
+		// Performance optimization: Don't filter by pattern during scan
+		// Pattern filtering is now done in-memory on already-scanned files
+		// This makes scanning faster and pattern changes instantaneous
 
 		// Get file info
 		info, err := d.Info()
@@ -110,19 +109,4 @@ func scanFiles(workDir, pattern string) ([]FileInfo, error) {
 	})
 
 	return files, nil
-}
-
-func matchesPattern(filename, pattern string) bool {
-	// Simple pattern matching
-	pattern = strings.ToLower(pattern)
-	filename = strings.ToLower(filename)
-
-	// If pattern contains *, use glob matching
-	if strings.Contains(pattern, "*") {
-		matched, err := filepath.Match(pattern, filename)
-		return err == nil && matched
-	}
-
-	// Otherwise, simple substring match
-	return strings.Contains(filename, pattern)
 }
