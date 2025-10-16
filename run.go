@@ -70,9 +70,17 @@ func Run() {
 
 	// Start the program
 	p := tea.NewProgram(m, tea.WithAltScreen())
-	if _, err := p.Run(); err != nil {
+	finalModel, err := p.Run()
+	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Print summary if available
+	if fm, ok := finalModel.(model); ok {
+		if fm.exitSummary != "" {
+			fmt.Print(fm.exitSummary)
+		}
 	}
 }
 

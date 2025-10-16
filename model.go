@@ -72,6 +72,9 @@ type model struct {
 	shouldPush      bool
 	confirmFocus    confirmFocus
 	gitRepos        map[string][]string // repo path -> list of changed files
+
+	// Summary to print after exit
+	exitSummary string
 }
 
 type scanCompleteMsg struct {
@@ -565,6 +568,9 @@ func (m *model) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
+			// Generate summary
+			m.exitSummary = m.generateExitSummary()
+
 			// Perform git workflow if enabled
 			if m.gitEnabled && len(m.gitRepos) > 0 {
 				branchName := m.branchNameInput.Value()
@@ -584,6 +590,9 @@ func (m *model) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.err = fmt.Errorf("%s", errMsg)
 					return m, nil
 				}
+
+				// Add git info to summary
+				m.exitSummary += m.generateGitSummary(successRepos, branchName)
 			}
 
 			return m, tea.Quit
@@ -1184,7 +1193,11 @@ func (m model) viewConfirm() string {
 		cancelButtonStyle = cancelButtonStyle.Background(lipgloss.Color("240")).Bold(true)
 	}
 
-	copyButton := copyButtonStyle.Render("Copy & Commit")
+	copyButtonText := "Copy files"
+	if m.gitEnabled {
+		copyButtonText = "Copy & Commit"
+	}
+	copyButton := copyButtonStyle.Render(copyButtonText)
 	cancelButton := cancelButtonStyle.Render("Cancel")
 
 	buttons := lipgloss.JoinHorizontal(lipgloss.Center, copyButton, "  ", cancelButton)
@@ -1281,6 +1294,33 @@ func (m *model) initGitWorkflow() {
 	m.gitEnabled = len(m.gitRepos) > 0
 	m.shouldPush = false             // Safer default
 	m.confirmFocus = focusCopyButton // Start on copy button
+}
+
+// generateExitSummary creates a summary of files copied
+func (m *model) generateExitSummary() string {
+	var summary strings.Builder
+	summary.WriteString("\nFile sync completed successfully!\n\n")
+	summary.WriteString(fmt.Sprintf("Source: %s\n", m.sourceFile.Path))
+	summary.WriteString(fmt.Sprintf("\nCopied to %d target(s):\n", len(m.selected)))
+
+	for idx := range m.selected {
+		if idx < len(m.filteredFiles) {
+			file := m.filteredFiles[idx]
+			summary.WriteString(fmt.Sprintf("  - %s\n", file.Path))
+		}
+	}
+
+	return summary.String()
+}
+
+// generateGitSummary creates a summary of git operations
+func (m *model) generateGitSummary(repos []string, branchName string) string {
+	var summary strings.Builder
+	summary.WriteString(fmt.Sprintf("\nGit commits created on branch '%s' in %d repository(ies):\n", branchName, len(repos)))
+	for _, repo := range repos {
+		summary.WriteString(fmt.Sprintf("  - %s\n", repo))
+	}
+	return summary.String()
 }
 
 func truncate(s string, maxLen int) string {
