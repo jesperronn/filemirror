@@ -45,9 +45,3 @@ func TestFilemirrorBinary(t *testing.T) {
 		t.Errorf("Expected help output, got: %s", output)
 	}
 }
-
-func TestMain(t *testing.T) {
-	// This is a simple test to ensure the main function runs without panicking.
-	// It doesn't test the full functionality of the application.
-	go main()
-}

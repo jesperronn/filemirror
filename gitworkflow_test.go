@@ -191,7 +191,7 @@ func TestCreateWorktreeAndBranch(t *testing.T) {
 		name        string
 		branchName  string
 		expectError bool
-		setupBranch bool // whether to create the branch first
+		setupBranch bool     // whether to create the branch first
 		setupFiles  []string // files to commit to the branch
 	}{
 		{
