@@ -191,7 +191,8 @@ func TestCreateWorktreeAndBranch(t *testing.T) {
 		name        string
 		branchName  string
 		expectError bool
-		setupBranch bool // whether to create the branch first
+		setupBranch bool     // whether to create the branch first
+		setupFiles  []string // files to commit to the branch
 	}{
 		{
 			name:        "create new branch",
@@ -205,16 +206,57 @@ func TestCreateWorktreeAndBranch(t *testing.T) {
 			expectError: false,
 			setupBranch: true,
 		},
+		{
+			name:        "existing branch with different files",
+			branchName:  "conflicting-branch",
+			expectError: true,
+			setupBranch: true,
+			setupFiles:  []string{"another-file.txt"},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup: create branch if needed
 			if tt.setupBranch {
-				cmd := exec.Command("git", "branch", tt.branchName)
+				// Get the default branch name (might be 'main' or 'master')
+				cmd := exec.Command("git", "branch", "--show-current")
+				cmd.Dir = repoPath
+				output, err := cmd.Output()
+				if err != nil {
+					t.Fatalf("Failed to get current branch: %v", err)
+				}
+				defaultBranch := strings.TrimSpace(string(output))
+
+				cmd = exec.Command("git", "checkout", "-b", tt.branchName)
 				cmd.Dir = repoPath
 				if err := cmd.Run(); err != nil {
 					t.Fatalf("Failed to setup branch: %v", err)
+				}
+
+				if len(tt.setupFiles) > 0 {
+					for _, file := range tt.setupFiles {
+						if err := os.WriteFile(filepath.Join(repoPath, file), []byte("content"), 0o644); err != nil {
+							t.Fatalf("Failed to create setup file: %v", err)
+						}
+						cmd := exec.Command("git", "add", file)
+						cmd.Dir = repoPath
+						if err := cmd.Run(); err != nil {
+							t.Fatalf("Failed to add setup file: %v", err)
+						}
+					}
+					cmd := exec.Command("git", "commit", "-m", "Setup commit")
+					cmd.Dir = repoPath
+					if err := cmd.Run(); err != nil {
+						t.Fatalf("Failed to commit setup files: %v", err)
+					}
+				}
+
+				// Go back to default branch
+				cmd = exec.Command("git", "checkout", defaultBranch)
+				cmd.Dir = repoPath
+				if err := cmd.Run(); err != nil {
+					t.Fatalf("Failed to checkout %s: %v", defaultBranch, err)
 				}
 			}
 

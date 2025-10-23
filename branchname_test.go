@@ -249,3 +249,40 @@ func TestNormalizeBranchName(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateBranchName(t *testing.T) {
+	tests := []struct {
+		name       string
+		branchName string
+		expectErr  bool
+	}{
+		{"valid branch name", "feature/new-branch", false},
+		{"valid branch name with numbers", "feature/new-branch-123", false},
+		{"empty branch name", " ", true},
+		{"branch name starting with dot", ".feature/new-branch", true},
+		{"branch name ending with dot", "feature/new-branch.", true},
+		{"branch name ending with .lock", "feature/new-branch.lock", true},
+		{"branch name containing ..", "feature/../new-branch", true},
+		{"branch name containing space", "feature/new branch", true},
+		{"branch name containing ~", "feature/~new-branch", true},
+		{"branch name containing ^", "feature/^new-branch", true},
+		{"branch name containing :", "feature/:new-branch", true},
+		{"branch name containing ?", "feature/?new-branch", true},
+		{"branch name containing *", "feature/*new-branch", true},
+		{"branch name containing [", "feature/[new-branch", true},
+		{"branch name containing \\", `feature\\new-branch`, true},
+		{"branch name starting with /", "/feature/new-branch", true}, {"branch name ending with /", "feature/new-branch/", true},
+		{"branch name containing //", "feature//new-branch", true},
+		{"branch name is @", "@", true},
+		{"branch name containing @{", "feature@{new-branch", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateBranchName(tt.branchName)
+			if (err != nil) != tt.expectErr {
+				t.Errorf("validateBranchName(%q) error = %v, expectErr %v", tt.branchName, err, tt.expectErr)
+			}
+		})
+	}
+}

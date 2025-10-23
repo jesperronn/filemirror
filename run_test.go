@@ -3,31 +3,48 @@ package filemirror
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
+// chdirMutex ensures tests that use os.Chdir() don't run in parallel
+var chdirMutex sync.Mutex
+
 func TestPathFlagChangesDirectory(t *testing.T) {
+	// Lock to prevent parallel execution with other tests that use os.Chdir
+	chdirMutex.Lock()
+	defer chdirMutex.Unlock()
+
+	// Try to recover to a valid directory if current one is invalid
+	if _, err := os.Getwd(); err != nil {
+		// Current directory is invalid, try to change to a safe location
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			_ = os.Chdir(homeDir)
+		}
+	}
+
 	// Create a temporary directory structure
 	tmpDir, err := os.MkdirTemp("", "fmr-path-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
+
+	// Remember original directory before any other setup
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current dir: %v", err)
+	}
+
 	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.Chdir(origDir) // Best effort to restore directory
+	}()
 
 	// Create a test file in the temp directory
 	testFile := filepath.Join(tmpDir, "test.txt")
 	if err := os.WriteFile(testFile, []byte("test content"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
-
-	// Remember original directory
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current dir: %v", err)
-	}
-	defer func() {
-		_ = os.Chdir(origDir) // Best effort to restore directory
-	}()
 
 	// Change to a different directory first
 	homeDir, err := os.UserHomeDir()
@@ -103,10 +120,31 @@ func TestPathFlagWithRelativePath(t *testing.T) {
 }
 
 func TestInvalidPathError(t *testing.T) {
+	// Lock to prevent parallel execution with other tests that use os.Chdir
+	chdirMutex.Lock()
+	defer chdirMutex.Unlock()
+
+	// Try to recover to a valid directory if current one is invalid
+	if _, err := os.Getwd(); err != nil {
+		// Current directory is invalid, try to change to a safe location
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			_ = os.Chdir(homeDir)
+		}
+	}
+
 	invalidPath := "/this/path/does/not/exist/hopefully"
 
+	// Save and restore current directory
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current dir: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(origDir)
+	}()
+
 	// Try to change to invalid directory
-	err := os.Chdir(invalidPath)
+	err = os.Chdir(invalidPath)
 	if err == nil {
 		t.Error("Expected error when changing to invalid directory")
 	}
