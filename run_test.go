@@ -1,10 +1,20 @@
 package filemirror
 
 import (
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
+
+var exitCalled bool
+
+func mockExit(code int) {
+	exitCalled = true
+}
 
 func TestPathFlagChangesDirectory(t *testing.T) {
 	// Create a temporary directory structure
@@ -109,5 +119,126 @@ func TestInvalidPathError(t *testing.T) {
 	err := os.Chdir(invalidPath)
 	if err == nil {
 		t.Error("Expected error when changing to invalid directory")
+	}
+}
+
+func TestPrintHelp(t *testing.T) {
+	// Keep old stdout
+	old := os.Stdout
+	// Create a new pipe
+	r, w, _ := os.Pipe()
+	// Set stdout to the new pipe
+	os.Stdout = w
+
+	PrintHelp()
+
+	// Close the writer
+	w.Close()
+	// Restore old stdout
+	os.Stdout = old
+
+	// Read the output
+	var buf strings.Builder
+	io.Copy(&buf, r)
+
+	// Check the output
+	if !strings.Contains(buf.String(), "fmr (FileMirror) - Interactive file synchronization tool") {
+		t.Errorf("Expected help message to contain 'fmr (FileMirror) - Interactive file synchronization tool', but it didn't")
+	}
+}
+
+func TestRun(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "version flag",
+			args: []string{"-v"},
+			want: "fmr version 0.1.0",
+		},
+		{
+			name: "version long flag",
+			args: []string{"--version"},
+			want: "fmr version 0.1.0",
+		},
+		{
+			name: "help flag",
+			args: []string{"-h"},
+			want: "fmr (FileMirror) - Interactive file synchronization tool",
+		},
+		{
+			name: "help long flag",
+			args: []string{"--help"},
+			want: "fmr (FileMirror) - Interactive file synchronization tool",
+		},
+		{
+			name: "path flag with valid path",
+			args: []string{"-p", "."},
+			want: "", // No output expected, but the chdir should succeed
+		},
+		{
+			name: "path flag with invalid path",
+			args: []string{"-p", "/invalid/path"},
+			want: "Error: cannot change to directory",
+		},
+		{
+			name: "initial query",
+			args: []string{"my-query"},
+			want: "", // No output expected, but the query should be set
+		},
+		{
+			name: "exit summary",
+			args: []string{},
+			want: "my exit summary",
+		},
+	}
+
+	// Mock newProgram
+	oldNewProgram := newProgram
+	newProgram = func(m tea.Model, opts ...tea.ProgramOption) *tea.Program {
+		if mm, ok := m.(model); ok {
+			mm.exitSummary = "my exit summary"
+			return tea.NewProgram(mm)
+		}
+		return tea.NewProgram(m)
+	}
+	defer func() { newProgram = oldNewProgram }()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Mock osExit
+			oldOsExit := osExit
+			defer func() { osExit = oldOsExit }()
+			exitCalled = false
+			osExit = mockExit
+
+			// Keep old stdout
+			old := os.Stdout
+			// Create a new pipe
+			r, w, _ := os.Pipe()
+			// Set stdout to the new pipe
+			os.Stdout = w
+
+			// Set os.Args
+			os.Args = append([]string{"fmr"}, tt.args...)
+
+			Run()
+
+			// Close the writer
+			w.Close()
+			// Restore old stdout
+			os.Stdout = old
+
+			// Read the output
+			var buf strings.Builder
+			io.Copy(&buf, r)
+
+			// Check the output
+			if tt.want != "" && !strings.Contains(buf.String(), tt.want) {
+				t.Errorf("expected output to contain %q, but got %q", tt.want, buf.String())
+			}
+		})
 	}
 }
