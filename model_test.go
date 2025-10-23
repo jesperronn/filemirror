@@ -888,3 +888,276 @@ func TestView(t *testing.T) {
 		})
 	}
 }
+
+func TestRenderHelpOverlay(t *testing.T) {
+	m := InitialModel("", ".")
+	m.width = 100
+	m.height = 40
+
+	helpView := m.renderHelpOverlay()
+
+	if !strings.Contains(helpView, "FILEMIRROR HELP") {
+		t.Error("Expected help view to contain 'FILEMIRROR HELP' title")
+	}
+
+	if !strings.Contains(helpView, "KEYBOARD SHORTCUTS") {
+		t.Error("Expected help view to contain 'KEYBOARD SHORTCUTS' section")
+	}
+
+	if !strings.Contains(helpView, "Press ESC or ? to close this help") {
+		t.Error("Expected help view to contain closing instructions")
+	}
+}
+
+func TestRenderPreviewError(t *testing.T) {
+	m := InitialModel("", ".")
+	m.width = 100
+
+	errMsg := "file not found"
+	previewErrView := m.renderPreviewError(errMsg)
+
+	if !strings.Contains(previewErrView, errMsg) {
+		t.Errorf("Expected preview error view to contain %q, but it didn't", errMsg)
+	}
+}
+
+func TestRenderEmptyPreview(t *testing.T) {
+	m := InitialModel("", ".")
+	m.width = 100
+
+	emptyPreviewView := m.renderEmptyPreview()
+
+	if !strings.Contains(emptyPreviewView, "No file selected") {
+		t.Error("Expected empty preview view to contain 'No file selected', but it didn't")
+	}
+}
+
+func TestInit(t *testing.T) {
+	m := InitialModel("", ".")
+	cmd := m.Init()
+	if cmd == nil {
+		t.Error("Expected a command to be returned, but got nil")
+	}
+}
+
+func TestStartDebounceTimer(t *testing.T) {
+	m := InitialModel("", ".")
+	cmd := m.startDebounceTimer()
+	if cmd == nil {
+		t.Error("Expected a command to be returned, but got nil")
+	}
+}
+
+func TestViewSelect(t *testing.T) {
+	m := InitialModel("", ".")
+	m.width = 100
+	m.height = 20
+	m.files = []FileInfo{
+		{Path: "file1.go"},
+		{Path: "file2.go"},
+	}
+	m.filterFiles()
+
+	view := m.viewSelect()
+
+	if !strings.Contains(view, "FileMirror - File Synchronization Tool") {
+		t.Error("Expected view to contain header")
+	}
+
+	if !strings.Contains(view, "PATH") {
+		t.Error("Expected view to contain path input")
+	}
+
+	if !strings.Contains(view, "SEARCH") {
+		t.Error("Expected view to contain search input")
+	}
+
+	if !strings.Contains(view, "FILE LIST") {
+		t.Error("Expected view to contain file list")
+	}
+
+	if !strings.Contains(view, "file1.go") {
+		t.Error("Expected view to contain file1.go")
+	}
+
+	if !strings.Contains(view, "file2.go") {
+		t.Error("Expected view to contain file2.go")
+	}
+}
+
+func TestRenderPreview(t *testing.T) {
+	// Create a temporary directory for testing
+	tmpDir, err := os.MkdirTemp("", "fmr-preview-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create source and target files
+	sourceFile := filepath.Join(tmpDir, "source.txt")
+	sourceContent := "line1\nline2\nline3"
+	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0o644); err != nil {
+		t.Fatalf("Failed to create source file: %v", err)
+	}
+
+	targetFile := filepath.Join(tmpDir, "target.txt")
+	targetContent := "line1\nline4\nline3"
+	if err := os.WriteFile(targetFile, []byte(targetContent), 0o644); err != nil {
+		t.Fatalf("Failed to create target file: %v", err)
+	}
+
+	m := InitialModel("", tmpDir)
+	m.width = 100
+	m.height = 20
+	m.files = []FileInfo{
+		{Path: "source.txt"},
+		{Path: "target.txt"},
+	}
+	m.filterFiles()
+
+	// Test plain preview
+	m.previewMode = previewPlain
+	m.cursor = 1 // Select target.txt
+	plainView := m.renderPreview()
+	if !strings.Contains(plainView, "line4") {
+		t.Error("Expected plain preview to contain target file content")
+	}
+
+	// Test diff preview
+	m.previewMode = previewDiff
+	m.sourceFile = &m.filteredFiles[0] // source.txt
+	diffView := m.renderPreview()
+	if !strings.Contains(diffView, "-line2") {
+		t.Error("Expected diff preview to contain removed line")
+	}
+	if !strings.Contains(diffView, "+line4") {
+		t.Error("Expected diff preview to contain added line")
+	}
+
+	// Test error handling
+	m.filteredFiles[1].Path = "non-existent-file.txt"
+	errView := m.renderPreview()
+	if !strings.Contains(errView, "Error reading file") {
+		t.Error("Expected error view to contain error message")
+	}
+}
+
+func TestShouldScanOnBlur(t *testing.T) {
+	tests := []struct {
+		name          string
+		lastSearchVal string
+		lastPathVal   string
+		currentSearch string
+		currentPath   string
+		expected      bool
+	}{
+		{
+			name:          "no changes",
+			lastSearchVal: "foo",
+			lastPathVal:   "/bar",
+			currentSearch: "foo",
+			currentPath:   "/bar",
+			expected:      false,
+		},
+		{
+			name:          "search changed",
+			lastSearchVal: "foo",
+			lastPathVal:   "/bar",
+			currentSearch: "baz",
+			currentPath:   "/bar",
+			expected:      true,
+		},
+		{
+			name:          "path changed",
+			lastSearchVal: "foo",
+			lastPathVal:   "/bar",
+			currentSearch: "foo",
+			currentPath:   "/qux",
+			expected:      true,
+		},
+		{
+			name:          "both changed",
+			lastSearchVal: "foo",
+			lastPathVal:   "/bar",
+			currentSearch: "baz",
+			currentPath:   "/qux",
+			expected:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := InitialModel(tt.currentSearch, tt.currentPath)
+			m.lastSearchValue = tt.lastSearchVal
+			m.lastPathValue = tt.lastPathVal
+
+			if got := m.shouldScanOnBlur(); got != tt.expected {
+				t.Errorf("shouldScanOnBlur() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestTriggerScanIfNeeded(t *testing.T) {
+	// Create a temporary directory for testing
+	tmpDir, err := os.MkdirTemp("", "fmr-scan-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Test case 1: Path has changed, should trigger a scan
+	t.Run("path changed", func(t *testing.T) {
+		m := InitialModel("", ".")
+		m.lastPathValue = "."
+		m.pathInput.SetValue(tmpDir)
+
+		cmd := m.triggerScanIfNeeded()
+
+		if cmd == nil {
+			t.Error("Expected a command to be returned, but got nil")
+		}
+
+		if m.workDir != tmpDir {
+			t.Errorf("Expected workDir to be %q, but got %q", tmpDir, m.workDir)
+		}
+
+		if m.lastPathValue != tmpDir {
+			t.Errorf("Expected lastPathValue to be %q, but got %q", tmpDir, m.lastPathValue)
+		}
+
+		if m.err != nil {
+			t.Errorf("Expected err to be nil, but got %v", m.err)
+		}
+	})
+
+	// Test case 2: Path is invalid, should set an error
+	t.Run("invalid path", func(t *testing.T) {
+		m := InitialModel("", ".")
+		m.lastPathValue = "."
+		m.pathInput.SetValue("/invalid/path/that/does/not/exist")
+
+		cmd := m.triggerScanIfNeeded()
+
+		if cmd != nil {
+			t.Error("Expected command to be nil, but got a command")
+		}
+
+		if m.err == nil {
+			t.Error("Expected an error to be set, but got nil")
+		}
+	})
+
+	// Test case 3: No changes, should not trigger a scan
+	t.Run("no changes", func(t *testing.T) {
+		m := InitialModel("foo", tmpDir)
+		m.lastSearchValue = "foo"
+		m.lastPathValue = tmpDir
+
+		cmd := m.triggerScanIfNeeded()
+
+		if cmd != nil {
+			t.Error("Expected command to be nil, but got a command")
+		}
+	})
+}
