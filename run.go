@@ -1,7 +1,9 @@
 package filemirror
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -15,77 +17,142 @@ var (
 	GitCommit = "unknown"
 )
 
-// Run is the main entry point for the filemirror application
-func Run() {
-	var workDir string
-	var initialQuery string
+// Config holds the parsed command-line configuration
+type Config struct {
+	WorkDir      string
+	InitialQuery string
+	ShowHelp     bool
+	ShowVersion  bool
+}
 
-	// Parse command line arguments
-	args := os.Args[1:]
+// parseArgs parses command-line arguments and returns a Config
+// Returns an error if arguments are invalid
+func parseArgs(args []string) (Config, error) {
+	var cfg Config
+
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch arg {
 		case "-h", "--help", "help":
-			PrintHelp()
-			return
+			cfg.ShowHelp = true
+			return cfg, nil
 		case "-v", "--version", "version":
-			fmt.Printf("fmr version %s\n", Version)
-			if BuildTime != "unknown" || GitCommit != "unknown" {
-				fmt.Printf("  Build time: %s\n", BuildTime)
-				fmt.Printf("  Git commit: %s\n", GitCommit)
-			}
-			return
+			cfg.ShowVersion = true
+			return cfg, nil
 		case "-p", "--path":
 			if i+1 < len(args) {
-				workDir = args[i+1]
+				cfg.WorkDir = args[i+1]
 				i++ // Skip next arg
 			} else {
-				fmt.Fprintf(os.Stderr, "Error: --path requires a directory argument\n")
-				os.Exit(1)
+				return cfg, errors.New("--path requires a directory argument")
 			}
 		default:
 			// If not a flag, treat as search pattern
-			if initialQuery == "" {
-				initialQuery = arg
+			if cfg.InitialQuery == "" {
+				cfg.InitialQuery = arg
 			}
 		}
 	}
 
-	// Change to specified directory if provided
-	if workDir != "" {
-		absPath, err := filepath.Abs(workDir)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: invalid path %q: %v\n", workDir, err)
-			os.Exit(1)
-		}
+	return cfg, nil
+}
 
-		if err := os.Chdir(absPath); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: cannot change to directory %q: %v\n", absPath, err)
-			os.Exit(1)
-		}
+// validateAndSetupWorkDir validates the working directory and changes to it
+// Returns the absolute path if successful
+func validateAndSetupWorkDir(workDir string) (string, error) {
+	if workDir == "" {
+		return "", nil
+	}
+
+	absPath, err := filepath.Abs(workDir)
+	if err != nil {
+		return "", fmt.Errorf("invalid path %q: %w", workDir, err)
+	}
+
+	if err := os.Chdir(absPath); err != nil {
+		return "", fmt.Errorf("cannot change to directory %q: %w", absPath, err)
+	}
+
+	return absPath, nil
+}
+
+// printVersion prints version information to the writer
+func printVersion(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "fmr version %s\n", Version) //nolint:errcheck // Error writing to stdout/stderr is not actionable
+	if BuildTime != "unknown" || GitCommit != "unknown" {
+		_, _ = fmt.Fprintf(w, "  Build time: %s\n", BuildTime) //nolint:errcheck // Error writing to stdout/stderr is not actionable
+		_, _ = fmt.Fprintf(w, "  Git commit: %s\n", GitCommit) //nolint:errcheck // Error writing to stdout/stderr is not actionable
+	}
+}
+
+// Run is the main entry point for the filemirror application
+func Run() {
+	code := RunWithArgs(os.Args[1:], os.Stdout, os.Stderr)
+	if code != 0 {
+		os.Exit(code)
+	}
+}
+
+// RunWithArgs runs the application with provided arguments and writers
+// Returns an exit code (0 for success, non-zero for errors)
+func RunWithArgs(args []string, stdout, stderr io.Writer) int {
+	cfg, err := parseArgs(args)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "Error: %v\n", err) //nolint:errcheck // Error writing to stderr is not actionable
+		return 1
+	}
+
+	if cfg.ShowHelp {
+		PrintHelpTo(stdout)
+		return 0
+	}
+
+	if cfg.ShowVersion {
+		printVersion(stdout)
+		return 0
+	}
+
+	// Validate and setup working directory
+	absPath, err := validateAndSetupWorkDir(cfg.WorkDir)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "Error: %v\n", err) //nolint:errcheck // Error writing to stderr is not actionable
+		return 1
+	}
+
+	// Use the absolute path if we changed directories
+	workDir := cfg.WorkDir
+	if absPath != "" {
+		workDir = absPath
 	}
 
 	// Create the model with initial query and working directory
-	m := InitialModel(initialQuery, workDir)
+	m := InitialModel(cfg.InitialQuery, workDir)
 
 	// Start the program
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	finalModel, err := p.Run()
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		os.Exit(1)
+		_, _ = fmt.Fprintf(stderr, "Error: %v\n", err) //nolint:errcheck // Error writing to stderr is not actionable
+		return 1
 	}
 
 	// Print summary if available
 	if fm, ok := finalModel.(model); ok {
 		if fm.exitSummary != "" {
-			fmt.Print(fm.exitSummary)
+			_, _ = fmt.Fprint(stdout, fm.exitSummary) //nolint:errcheck // Error writing to stdout is not actionable
 		}
 	}
+
+	return 0
 }
 
-// PrintHelp displays the help message
+// PrintHelp displays the help message to stdout
 func PrintHelp() {
+	PrintHelpTo(os.Stdout)
+}
+
+// PrintHelpTo displays the help message to the specified writer
+func PrintHelpTo(w io.Writer) {
 	help := `fmr (FileMirror) - Interactive file synchronization tool
 
 USAGE:
@@ -158,5 +225,5 @@ EXAMPLES:
 REPOSITORY:
     https://github.com/jesperronn/filemirror-fmr
 `
-	fmt.Println(help)
+	_, _ = fmt.Fprintln(w, help) //nolint:errcheck // Error writing to writer is not actionable
 }

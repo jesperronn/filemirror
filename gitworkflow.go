@@ -56,14 +56,44 @@ func generateWorktreeID() string {
 	return hex.EncodeToString(bytes)
 }
 
+// getDefaultBranch returns the default branch name for a repository
+// It first checks init.defaultBranch config, then falls back to checking which of main/master exists
+func getDefaultBranch(repoPath string) (string, error) {
+	// First, try to get the configured default branch
+	cmd := exec.Command("git", "-C", repoPath, "config", "--get", "init.defaultBranch")
+	output, err := cmd.Output()
+	if err == nil && len(output) > 0 {
+		branch := strings.TrimSpace(string(output))
+		if branch != "" {
+			// Verify this branch actually exists
+			checkCmd := exec.Command("git", "-C", repoPath, "rev-parse", "--verify", branch)
+			if checkCmd.Run() == nil {
+				return branch, nil
+			}
+		}
+	}
+
+	// Fall back to checking if main exists
+	checkMain := exec.Command("git", "-C", repoPath, "rev-parse", "--verify", "main")
+	if checkMain.Run() == nil {
+		return "main", nil
+	}
+
+	// Fall back to checking if master exists
+	checkMaster := exec.Command("git", "-C", repoPath, "rev-parse", "--verify", "master")
+	if checkMaster.Run() == nil {
+		return "master", nil
+	}
+
+	return "", fmt.Errorf("could not determine default branch")
+}
+
 // getChangedFilesInBranch returns the list of files changed in a branch compared to its base
 func getChangedFilesInBranch(repoPath, branchName string) ([]string, error) {
-	// Get the merge base (common ancestor with main/master)
-	baseBranch := "main"
-	checkMain := exec.Command("git", "-C", repoPath, "rev-parse", "--verify", "main")
-	if checkMain.Run() != nil {
-		// Try master if main doesn't exist
-		baseBranch = "master"
+	// Get the default branch to use as base
+	baseBranch, err := getDefaultBranch(repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine base branch: %w", err)
 	}
 
 	// Get list of changed files in the branch
