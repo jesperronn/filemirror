@@ -16,7 +16,7 @@ cd "$PROJECT_ROOT"
 
 # Parse command line arguments
 VERBOSE=false
-RACE=false
+RACE=true  # Enable race detector by default
 BENCH=false
 HTML=false
 
@@ -26,18 +26,18 @@ Usage: bin/test [OPTIONS]
 
 Run tests for the FileMirror project.
 Coverage reports are always generated in tmp/ directory.
+Race detector is enabled by default.
 
 OPTIONS:
     -v, --verbose       Verbose test output
-    -r, --race          Run tests with race detector
+    -r, --race          Run tests with race detector (enabled by default)
     -b, --bench         Run benchmarks
     --html              Open HTML coverage report in browser after tests
     -h, --help          Show this help message
 
 EXAMPLES:
-    bin/test                    # Run all tests with coverage
+    bin/test                    # Run all tests with coverage and race detector
     bin/test --verbose          # Run with verbose output
-    bin/test --race             # Run with race detector
     bin/test --html             # Run and open coverage in browser
 
 COVERAGE:
