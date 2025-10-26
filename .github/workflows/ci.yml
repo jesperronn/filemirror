@@ -53,7 +53,9 @@ jobs:
   # Additional tests only run if gate passes
   test-matrix:
     name: Test (Go ${{ matrix.go }}, ${{ matrix.os }})
-    needs: gate-test
+    needs:
+      - gate-test
+      - lint
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -99,7 +101,6 @@ jobs:
 
   lint:
     name: Lint
-    needs: gate-test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
