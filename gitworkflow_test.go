@@ -27,8 +27,10 @@ func createTestGitRepo(t *testing.T) string {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 
-	// Initialize git repo
-	cmd := exec.Command("git", "init")
+	// Initialize git repo with explicit 'main' branch
+	// Using -b flag ensures consistent behavior across different git versions and configs
+	// (some systems default to 'master', others to 'main')
+	cmd := exec.Command("git", "init", "-b", "main")
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
 		os.RemoveAll(tmpDir)
