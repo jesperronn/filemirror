@@ -3,6 +3,8 @@ package filemirror
 import (
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -344,4 +346,121 @@ func TestScanFilesRelativePaths(t *testing.T) {
 			t.Errorf("Expected relative path, got absolute path: %s", file.Path)
 		}
 	}
+}
+
+func TestScanFilesWithInaccessibleDirectory(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping permission test on Windows (different permission model)")
+	}
+
+	tmpDir, err := os.MkdirTemp("", "fmr-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create accessible file
+	accessibleFile := filepath.Join(tmpDir, "accessible.txt")
+	if err := os.WriteFile(accessibleFile, []byte("test"), 0o644); err != nil {
+		t.Fatalf("Failed to create accessible file: %v", err)
+	}
+
+	// Create directory with no read permissions
+	noAccessDir := filepath.Join(tmpDir, "no-access")
+	if err := os.Mkdir(noAccessDir, 0o755); err != nil {
+		t.Fatalf("Failed to create directory: %v", err)
+	}
+
+	// Create file inside it first
+	hiddenFile := filepath.Join(noAccessDir, "hidden.txt")
+	if err := os.WriteFile(hiddenFile, []byte("hidden"), 0o644); err != nil {
+		t.Fatalf("Failed to create hidden file: %v", err)
+	}
+
+	// Remove read/execute permissions from directory
+	if err := os.Chmod(noAccessDir, 0o000); err != nil {
+		t.Fatalf("Failed to chmod directory: %v", err)
+	}
+	defer os.Chmod(noAccessDir, 0o755) // Restore for cleanup
+
+	// Scan should succeed but skip inaccessible directory
+	files, err := scanFiles(tmpDir, "")
+	if err != nil {
+		t.Fatalf("scanFiles failed: %v", err)
+	}
+
+	// Should find accessible file but not hidden file
+	foundAccessible := false
+	foundHidden := false
+	for _, file := range files {
+		if strings.Contains(file.Path, "accessible.txt") {
+			foundAccessible = true
+		}
+		if strings.Contains(file.Path, "hidden.txt") {
+			foundHidden = true
+		}
+	}
+
+	if !foundAccessible {
+		t.Error("Expected to find accessible file")
+	}
+	if foundHidden {
+		t.Error("Should not have found file in inaccessible directory")
+	}
+}
+
+func TestScanFilesWithSymlinks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping symlink test on Windows (requires special privileges)")
+	}
+
+	tmpDir, err := os.MkdirTemp("", "fmr-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a regular file
+	regularFile := filepath.Join(tmpDir, "regular.txt")
+	if err := os.WriteFile(regularFile, []byte("regular"), 0o644); err != nil {
+		t.Fatalf("Failed to create regular file: %v", err)
+	}
+
+	// Create a symlink to the file
+	symlinkPath := filepath.Join(tmpDir, "symlink.txt")
+	if err := os.Symlink(regularFile, symlinkPath); err != nil {
+		t.Fatalf("Failed to create symlink: %v", err)
+	}
+
+	// Scan files - symlinks should be skipped (not regular files)
+	files, err := scanFiles(tmpDir, "")
+	if err != nil {
+		t.Fatalf("scanFiles failed: %v", err)
+	}
+
+	// Should only find the regular file, not the symlink
+	foundRegular := false
+	foundSymlink := false
+	for _, file := range files {
+		if strings.Contains(file.Path, "regular.txt") && !strings.Contains(file.Path, "symlink") {
+			foundRegular = true
+		}
+		if strings.Contains(file.Path, "symlink.txt") {
+			foundSymlink = true
+		}
+	}
+
+	if !foundRegular {
+		t.Error("Expected to find regular file")
+	}
+	if foundSymlink {
+		t.Error("Should not have found symlink (not a regular file)")
+	}
+}
+
+func TestScanFilesWithUnstatableFile(t *testing.T) {
+	// This test is difficult to set up without race conditions or special filesystem
+	// The error path where d.Info() fails (line 84-86 in scanner.go) is defensive
+	// programming and rarely occurs in practice.
+	t.Skip("Skipping unstat-able file test - requires complex race conditions or special filesystem")
 }

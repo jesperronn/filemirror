@@ -179,6 +179,12 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 - Test view rendering (where practical)
 - Mock bubbletea messages
 
+### Git-Related Testing
+- **Default Branch Detection**: The `getDefaultBranch()` function dynamically detects the actual default branch of a repository by checking which of `main` or `master` exists locally, or by checking `origin/HEAD` if a remote exists.
+- When writing tests that create test repositories, be aware that renaming or changing the default branch will be correctly detected, regardless of the system's git configuration.
+- This is important because CI environments may have different global git configs (e.g., `init.defaultBranch`) than local machines.
+- Tests can safely create repositories with either `main` or `master` as the default branch without special setup.
+
 ## Common Development Tasks
 
 ### Adding a New Feature

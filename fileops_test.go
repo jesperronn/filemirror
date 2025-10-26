@@ -409,3 +409,244 @@ func TestCopyFileSpecialCharactersInPath(t *testing.T) {
 		t.Errorf("Content mismatch: got %q, want %q", string(dstContent), content)
 	}
 }
+
+func TestCopyFileIOCopyFailure(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "fmr-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create source file
+	srcPath := filepath.Join(tmpDir, "source.txt")
+	if err := os.WriteFile(srcPath, []byte("test content"), 0o644); err != nil {
+		t.Fatalf("Failed to create source file: %v", err)
+	}
+
+	// Try to copy to a destination in a read-only directory
+	// This will fail during the temp file creation or io.Copy
+	if runtime.GOOS != "windows" {
+		readOnlyDir := filepath.Join(tmpDir, "readonly-dir")
+		if err := os.Mkdir(readOnlyDir, 0o555); err != nil {
+			t.Fatalf("Failed to create read-only dir: %v", err)
+		}
+		defer os.Chmod(readOnlyDir, 0o755) // Restore permissions for cleanup
+
+		dstPath := filepath.Join(readOnlyDir, "dest.txt")
+		err = copyFile(srcPath, dstPath)
+		if err == nil {
+			t.Error("Expected error when copying to read-only directory, got nil")
+		}
+	}
+}
+
+func TestCopyFileStatFailure(t *testing.T) {
+	// This test is challenging because we need the file to open successfully
+	// but stat to fail. This is rare in practice but can happen with race conditions.
+	// We'll skip this as it requires complex mocking or race conditions.
+	t.Skip("Skipping stat failure test - requires complex setup or mocking")
+}
+
+func TestCopyFileChmodFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping chmod test on Windows (different permission model)")
+	}
+
+	tmpDir, err := os.MkdirTemp("", "fmr-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create source file
+	srcPath := filepath.Join(tmpDir, "source.txt")
+	if err := os.WriteFile(srcPath, []byte("test"), 0o644); err != nil {
+		t.Fatalf("Failed to create source file: %v", err)
+	}
+
+	// Create destination - copyFile will create a temp file, and we can't easily
+	// make chmod fail without root privileges or special filesystem setup.
+	// The chmod error path is tested implicitly by successful copies.
+	// We'll document this as a limitation.
+	t.Skip("Skipping chmod failure test - requires special filesystem setup to force chmod to fail")
+}
+
+func TestCopyFileTempFileCloseError(t *testing.T) {
+	// Testing the temp file close error (line 46-47) is difficult because:
+	// 1. We'd need to cause Close() to fail after a successful Copy()
+	// 2. This typically requires file descriptor exhaustion or filesystem errors
+	// 3. The defer cleanup (line 41) is also hard to force to fail
+	//
+	// These error paths are defensive programming and rarely occur in practice.
+	t.Skip("Skipping temp file close error test - requires complex failure injection")
+}
+
+// TestCopyFileWithBinaryContent tests copying binary files
+func TestCopyFileWithBinaryContent(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "fmr-binary-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create source file with binary content
+	srcPath := filepath.Join(tmpDir, "binary.bin")
+	binaryContent := []byte{0x00, 0x01, 0x02, 0xFF, 0xFE, 0xFD}
+	if err := os.WriteFile(srcPath, binaryContent, 0o644); err != nil {
+		t.Fatalf("Failed to create source file: %v", err)
+	}
+
+	// Copy file
+	dstPath := filepath.Join(tmpDir, "binary_copy.bin")
+	if err := copyFile(srcPath, dstPath); err != nil {
+		t.Fatalf("Copy failed: %v", err)
+	}
+
+	// Verify content matches exactly
+	content, err := os.ReadFile(dstPath)
+	if err != nil {
+		t.Fatalf("Failed to read destination file: %v", err)
+	}
+
+	if len(content) != len(binaryContent) {
+		t.Errorf("Content length mismatch: expected %d, got %d", len(binaryContent), len(content))
+	}
+
+	for i, b := range content {
+		if b != binaryContent[i] {
+			t.Errorf("Content mismatch at byte %d: expected %x, got %x", i, binaryContent[i], b)
+		}
+	}
+}
+
+// TestCopyFilePreservesExecutableBit tests that executable bit is preserved
+func TestCopyFilePreservesExecutableBit(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping executable bit test on Windows")
+	}
+
+	tmpDir, err := os.MkdirTemp("", "fmr-exec-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create source file with executable bit
+	srcPath := filepath.Join(tmpDir, "executable.sh")
+	if err := os.WriteFile(srcPath, []byte("#!/bin/bash\necho hello"), 0o755); err != nil {
+		t.Fatalf("Failed to create source file: %v", err)
+	}
+
+	// Copy file
+	dstPath := filepath.Join(tmpDir, "executable_copy.sh")
+	if err := copyFile(srcPath, dstPath); err != nil {
+		t.Fatalf("Copy failed: %v", err)
+	}
+
+	// Check permissions
+	srcInfo, err := os.Stat(srcPath)
+	if err != nil {
+		t.Fatalf("Failed to stat source: %v", err)
+	}
+
+	dstInfo, err := os.Stat(dstPath)
+	if err != nil {
+		t.Fatalf("Failed to stat destination: %v", err)
+	}
+
+	srcPerm := srcInfo.Mode().Perm()
+	dstPerm := dstInfo.Mode().Perm()
+
+	if srcPerm != dstPerm {
+		t.Errorf("Permissions mismatch: expected %o, got %o", srcPerm, dstPerm)
+	}
+}
+
+// TestCopyFileLargeFile tests copying a large file
+func TestCopyFileLargeFile(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "fmr-large-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create large source file (5MB)
+	srcPath := filepath.Join(tmpDir, "large.bin")
+	largeContent := make([]byte, 5*1024*1024)
+	for i := range largeContent {
+		largeContent[i] = byte(i % 256)
+	}
+	if err := os.WriteFile(srcPath, largeContent, 0o644); err != nil {
+		t.Fatalf("Failed to create large file: %v", err)
+	}
+
+	// Copy file
+	dstPath := filepath.Join(tmpDir, "large_copy.bin")
+	if err := copyFile(srcPath, dstPath); err != nil {
+		t.Fatalf("Copy failed: %v", err)
+	}
+
+	// Verify file was copied
+	dstContent, err := os.ReadFile(dstPath)
+	if err != nil {
+		t.Fatalf("Failed to read destination: %v", err)
+	}
+
+	if len(dstContent) != len(largeContent) {
+		t.Errorf("Size mismatch: expected %d, got %d", len(largeContent), len(dstContent))
+	}
+}
+
+// TestCopyFileFromNonexistentDir tests copying from a directory that doesn't exist
+func TestCopyFileFromNonexistentDir(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "fmr-nonexist-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Try to copy from nonexistent file
+	srcPath := filepath.Join(tmpDir, "nonexistent.txt")
+	dstPath := filepath.Join(tmpDir, "destination.txt")
+
+	err = copyFile(srcPath, dstPath)
+	if err == nil {
+		t.Error("Expected error when copying nonexistent file")
+	}
+}
+
+// TestCopyFileToReadOnlyDir tests copying to a read-only directory
+func TestCopyFileToReadOnlyDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping read-only directory test on Windows")
+	}
+
+	tmpDir, err := os.MkdirTemp("", "fmr-readonly-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create source file
+	srcPath := filepath.Join(tmpDir, "source.txt")
+	if err := os.WriteFile(srcPath, []byte("content"), 0o644); err != nil {
+		t.Fatalf("Failed to create source: %v", err)
+	}
+
+	// Create read-only destination directory
+	readOnlyDir := filepath.Join(tmpDir, "readonly")
+	if err := os.Mkdir(readOnlyDir, 0o555); err != nil {
+		t.Fatalf("Failed to create readonly dir: %v", err)
+	}
+
+	dstPath := filepath.Join(readOnlyDir, "destination.txt")
+
+	// Try to copy (should fail)
+	err = copyFile(srcPath, dstPath)
+	if err == nil {
+		t.Error("Expected error when copying to read-only directory")
+	}
+
+	// Restore permissions for cleanup
+	os.Chmod(readOnlyDir, 0o755)
+}
