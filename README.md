@@ -63,18 +63,24 @@ fmr --path ~/projects "config"
 
 ## Installation
 
-### Go Install (Recommended)
+**See the [latest release](https://github.com/jesperronn/filemirror-fmr/releases/latest) for:**
+- Pre-built binaries (Linux, macOS, Windows)
+- Platform-specific installation instructions
+- SHA256 checksums
+
+Both `filemirror` and `fmr` binaries are available (identical functionality).
+
+### Quick Install with Go
+
 ```bash
+# Install latest version
 go install github.com/jesperronn/filemirror-fmr/cmd/fmr@latest
+
+# Or install specific version
+go install github.com/jesperronn/filemirror-fmr/cmd/fmr@v1.1.0
 ```
 
-### From Source
-```bash
-git clone https://github.com/jesperronn/filemirror-fmr
-cd filemirror-fmr
-go build -o fmr ./cmd/fmr
-sudo mv fmr /usr/local/bin/
-```
+**Note:** Both `filemirror` and `fmr` commands are available - use whichever you prefer.
 
 ## Usage
 
@@ -251,6 +257,32 @@ bin/test --race         # Race detector
 bin/lint           # Run linters
 bin/lint --fix     # Auto-fix issues
 ```
+
+### Release
+
+Creating a new release is automated via git tags:
+
+```bash
+# Create and push a new version tag
+bin/release --patch              # Bump patch version (e.g., 1.1.0 → 1.1.1)
+bin/release --minor              # Bump minor version (e.g., 1.1.0 → 1.2.0)
+bin/release --major              # Bump major version (e.g., 1.1.0 → 2.0.0)
+
+# Or interactively choose version
+bin/release
+
+# Push the tag to trigger release workflow
+git push --follow-tags
+```
+
+**What happens automatically:**
+1. GitHub Actions workflow triggers on tag push
+2. Builds binaries for all platforms (Linux, macOS, Windows)
+3. Generates release notes from git commits
+4. Creates GitHub release with binaries and checksums
+5. Version is automatically embedded in binaries
+
+**Note:** Version is defined ONLY in git tags - no manual updates needed in code!
 
 ## Requirements
 

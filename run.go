@@ -6,16 +6,44 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// Build-time variables (set by ldflags)
+// Build-time variables (set by ldflags during build).
+// If not set (e.g., via `go install`), they are detected at runtime.
 var (
-	Version   = "0.1.0"
-	BuildTime = "unknown"
-	GitCommit = "unknown"
+	Version   = ""
+	BuildTime = ""
+	GitCommit = ""
 )
+
+func init() {
+	// If version wasn't set at build time via ldflags,
+	// try to get it from the module build info (e.g., from `go install`)
+	if Version == "" {
+		if info, ok := debug.ReadBuildInfo(); ok {
+			// For `go install github.com/.../fmr@v1.1.0`,
+			// info.Main.Version will be "v1.1.0"
+			if info.Main.Version != "(devel)" && info.Main.Version != "" {
+				Version = info.Main.Version
+			} else {
+				Version = "dev"
+			}
+		} else {
+			Version = "dev"
+		}
+	}
+
+	// Set defaults for other fields if not provided
+	if BuildTime == "" {
+		BuildTime = "unknown"
+	}
+	if GitCommit == "" {
+		GitCommit = "unknown"
+	}
+}
 
 // Config holds the parsed command-line configuration
 type Config struct {
