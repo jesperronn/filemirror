@@ -120,7 +120,7 @@ jobs:
           test -z "$(gofmt -l .)" || (echo "Code is not formatted. Run 'gofmt -w .'" && exit 1)
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
           version: v1.64.8
           args: --timeout=5m
